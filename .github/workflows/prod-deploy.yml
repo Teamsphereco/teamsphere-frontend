@@ -1,0 +1,53 @@
+name: Production Deployment
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Create env file
+        run: |
+          cat > .env.production << EOL
+          VITE_API_HOST=${{ secrets.VITE_PROD_API_HOST }}
+          VITE_REACT_APP_GOOGLE_CLIENT_ID=${{ secrets.VITE_REACT_APP_GOOGLE_CLIENT_ID }}
+          EOL
+        
+      - name: Build application
+        run: npm run build
+        
+      - name: Deploy to production
+        uses: appleboy/scp-action@master
+        with:
+          host: '${{ secrets.VPS_IP }}'
+          username: '${{ secrets.VPS_USERNAME }}'
+          key: '${{ secrets.SSH_PRIVATE_KEY }}'
+          port: '${{ secrets.SSH_PORT }}'
+          source: "dist/*"
+          target: "/home/teamsphere/projects/teamsphere-deployment/web-build"
+          strip_components: 1
+          
+      - name: Restart Nginx
+        uses: appleboy/ssh-action@master
+        with:
+          host: '${{ secrets.VPS_IP }}'
+          username: '${{ secrets.VPS_USERNAME }}'
+          key: '${{ secrets.SSH_PRIVATE_KEY }}'
+          port: '${{ secrets.SSH_PORT }}'
+          script: |
+            cd /home/teamsphere/projects/teamsphere-deployment
+            docker compose up -d --force-recreate nginx
