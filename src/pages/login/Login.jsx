@@ -39,7 +39,7 @@ export default function Login() {
   return (
     <section className="flex flex-col justify-center bg-gray-50 dark:bg-gray-900 h-screen">
       <div className="py-8 px-4 mx-auto w-3/4 lg:w-1/2 lg:py-16 gap-8 lg:gap-16">
-        <div>
+        <div className="lg:flex lg:justify-center">
           <div className="w-full lg:max-w-xl p-6 space-y-8 sm:p-8 bg-white rounded-lg shadow-xl dark:bg-gray-800">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
               Sign in to Teamsphere
