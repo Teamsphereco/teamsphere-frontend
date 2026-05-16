@@ -1,28 +1,32 @@
-import { useState } from 'react'
 import Login from './pages/login/Login'
 import Signup from './pages/signup/SignUp'
 import Home from './pages/home/Home'
 import Chat from './pages/chat/Chat'
+import Settings from './pages/settings/Settings'
+import OAuthCallback from './pages/auth/OAuthCallback'
+import CardStackDemo from './pages/cardstack/CardStackDemo'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuthContext } from "./context/AuthContext";
-import { Toaster } from "react-hot-toast";
-import { GoogleOAuthProvider } from '@react-oauth/google';
+import AppToaster from "./components/AppToaster";
 
 function App() {
-  const { authUser } = useAuthContext(); 
+  const { authUser } = useAuthContext();
+
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_REACT_APP_GOOGLE_CLIENT_ID}>
-      <div>
-        <Routes>
-          <Route path='/' element={<Home />} />
-          <Route path='/login' element={authUser ? <Navigate to='/chat' /> : <Login />} />
-          <Route path='/signin' element={authUser ? <Navigate to='/chat' /> : <Login />} />
-          <Route path='/signup' element={authUser ? <Navigate to='/chat' /> : <Signup />} />
-          <Route path='/chat' element={authUser ? <Chat /> : <Navigate to='/login' />} />
-        </Routes>
-        <Toaster />
-      </div>
-    </GoogleOAuthProvider>
+    <div>
+      <Routes>
+        <Route path='/' element={<Home />} />
+        <Route path='/login' element={authUser ? <Navigate to='/chat' /> : <Login />} />
+        <Route path='/signin' element={authUser ? <Navigate to='/chat' /> : <Login />} />
+        <Route path='/signup' element={authUser ? <Navigate to='/chat' /> : <Signup />} />
+        <Route path='/chat' element={authUser ? <Chat /> : <Navigate to='/login' />} />
+        <Route path='/settings' element={authUser ? <Settings /> : <Navigate to='/login' />} />
+        <Route path='/card-stack' element={<CardStackDemo />} />
+        <Route path='/oauth/callback' element={<OAuthCallback />} />
+        <Route path='*' element={<Navigate to='/' replace />} />
+      </Routes>
+      <AppToaster />
+    </div>
   )
 }
 

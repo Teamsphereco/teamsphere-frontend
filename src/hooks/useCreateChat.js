@@ -2,16 +2,14 @@ import { useState, useCallback } from 'react';
 import { useAuthContext } from "../context/AuthContext";
 import toast from 'react-hot-toast';
 import useConversation from '../zustand/useConversation';
-import useGetConversations from './useGetConversations';
 
 const useCreateChat = () => {
   const { authUser } = useAuthContext(); 
   const [creatingChat, setCreatingChat] = useState(false);
   const [chatData, setChatData] = useState(null);
-  const { refreshConversations } = useGetConversations();
-  const setSelectedConversation = useConversation((state) => state.setSelectedConversation);
+  const { setSelectedConversation, upsertConversation } = useConversation();
 
-  const handleCreateChat = useCallback(async (user_id) => {
+  const handleCreateChat = useCallback(async (user_id, options = {}) => {
     try {
       setCreatingChat(true);
 
@@ -27,10 +25,21 @@ const useCreateChat = () => {
       if (response.ok) {
         const newChatData = await response.json();
         setChatData(newChatData);
-        setSelectedConversation(newChatData);
-        
-        // Refresh the conversation list to include the new chat
-        refreshConversations();
+
+        const conversationSummary = {
+          id: newChatData.id,
+          chatName: options.username || newChatData.chatName || "New chat",
+          chatImage: options.profileImageUrl || newChatData.chatImage || null,
+          lastMessage: null,
+          unreadCount: 0,
+        };
+
+        upsertConversation(conversationSummary, { moveToTop: true });
+        setSelectedConversation({
+          chatId: newChatData.id,
+          chatName: conversationSummary.chatName,
+          chatImage: conversationSummary.chatImage,
+        });
         
         toast.success('Chat created successfully');
       } else {
@@ -41,7 +50,7 @@ const useCreateChat = () => {
     } finally {
       setCreatingChat(false);
     }
-  }, [authUser.jwt, refreshConversations, setSelectedConversation]);
+  }, [authUser.jwt, setSelectedConversation, upsertConversation]);
 
   return { creatingChat, chatData, handleCreateChat };
 };

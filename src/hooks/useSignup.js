@@ -1,6 +1,8 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { useAuthContext } from "../context/AuthContext";
+import { normalizeAuthUser } from "../utils/auth";
+import { setHasLoggedInBefore } from "../utils/landingCta";
 
 const useSignup = () => {
 	const [loading, setLoading] = useState(false);
@@ -23,12 +25,17 @@ const useSignup = () => {
                 cache: 'no-store',
             })
 
-			const data = await request.json();
+			const data = await request.json().catch(() => ({}));
+			if (!request.ok) {
+				throw new Error(data.error || data.detail || data.details || "Signup failed");
+			}
 			if (data.error) {
 				throw new Error(data.error);
 			}
-			localStorage.setItem("chat-user", JSON.stringify(data));
-			setAuthUser(data);
+			const normalizedAuthUser = normalizeAuthUser(data);
+			localStorage.setItem("chat-user", JSON.stringify(normalizedAuthUser));
+			setHasLoggedInBefore();
+			setAuthUser(normalizedAuthUser);
 		} catch (error) {
 			toast.error(error.message);
 		} finally {
@@ -46,18 +53,13 @@ function handleInputErrors({ email, password, username, file }) {
 		return false;
 	}
 
-    if (!file) {
-        toast.error("Please upload a file");
-        return false;
-    }
-
 	if (password.length < 6) {
 		toast.error("Password must be at least 6 characters");
 		return false;
 	}
 
     const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
-    if (file.size > maxFileSize) {
+    if (file && file.size > maxFileSize) {
         toast.error("File size must be less than 10MB");
         return false;
     }

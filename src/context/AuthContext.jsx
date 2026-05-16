@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { normalizeAuthUser } from "../utils/auth";
 
 export const AuthContext = createContext();
 
@@ -7,45 +8,61 @@ export const useAuthContext = () => {
 	return useContext(AuthContext);
 };
 
+const readStoredAuthUser = () => {
+	const raw = localStorage.getItem("chat-user");
+	if (!raw) return null;
+
+	try {
+		return normalizeAuthUser(JSON.parse(raw));
+	} catch (error) {
+		console.error("Invalid auth payload in localStorage. Clearing session.", error);
+		localStorage.removeItem("chat-user");
+		return null;
+	}
+};
+
 export const AuthContextProvider = ({ children }) => {
-	const [authUser, setAuthUser] = useState(() => {
-		const storedUser = JSON.parse(localStorage.getItem("chat-user"));
-		return storedUser || null;
-	});
+	const [authUser, setAuthUser] = useState(readStoredAuthUser);
 
 	useEffect(() => {
 		const checkToken = async () => {
-			if (authUser && authUser.jwt) {
-				try {
-					const response = await fetch(`${import.meta.env.VITE_API_HOST}/auth/verify`, {
-						method: 'GET',
-						headers: {
-							'Authorization': `Bearer ${authUser.jwt}`
-						}
-					});
-					
-					if (response.status === 401) {
-						const errorMessage = await response.text();
-						console.error("Unauthorized:", errorMessage);
-						localStorage.removeItem("chat-user");
-						setAuthUser(null);
-					} else if (!response.ok) {
-						console.error("Unexpected error during token verification");
-						// Optionally, you might want to keep the user logged in if it's a server-side issue
-						// For now, we'll log them out to be safe
-						localStorage.removeItem("chat-user");
-						setAuthUser(null);
-					}
-					// If response is ok, do nothing as the user is already authenticated
-				} catch (error) {
-					console.error("Token verification failed:", error);
+			const token = authUser?.accessToken;
+			if (!token) {
+				return;
+			}
+
+			try {
+				const response = await fetch(`${import.meta.env.VITE_API_HOST}/auth/verify`, {
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+				});
+
+				if (response.status === 401 || response.status === 403) {
 					localStorage.removeItem("chat-user");
 					setAuthUser(null);
+					return;
 				}
+
+				// Keep session if verify endpoint is intentionally removed.
+				if (response.status === 404) {
+					return;
+				}
+
+				if (!response.ok) {
+					console.error("Token verification failed with status:", response.status);
+				}
+			} catch (error) {
+				console.error("Token verification request failed:", error);
 			}
 		};
 		checkToken();
-	}, [authUser]);
+	}, [authUser?.accessToken]);
 
-	return <AuthContext.Provider value={{ authUser, setAuthUser }}>{children}</AuthContext.Provider>;
+	const setNormalizedAuthUser = (nextAuthUser) => {
+		setAuthUser(normalizeAuthUser(nextAuthUser));
+	};
+
+	return <AuthContext.Provider value={{ authUser, setAuthUser: setNormalizedAuthUser }}>{children}</AuthContext.Provider>;
 };

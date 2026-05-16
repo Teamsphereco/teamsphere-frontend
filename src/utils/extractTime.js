@@ -1,17 +1,44 @@
-export function extractTime(dateString) {
-    const date = new Date(dateString);
-    let hours = date.getHours();
-    const minutes = padZero(date.getMinutes());
-    const ampm = hours >= 12 ? 'PM' : 'AM';
+const safeDate = (dateString) => {
+	const parsedDate = new Date(dateString);
+	return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
 
-    // Convert 24-hour time to 12-hour time
-    hours = hours % 12;
-    hours = hours ? hours : 12; // the hour '0' should be '12'
+export function getDayKey(dateString) {
+	const date = safeDate(dateString);
+	if (!date) return "unknown-day";
 
-    return `${padZero(hours)}:${minutes} ${ampm}`;
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
 }
 
-// Helper function to pad single-digit numbers with a leading zero
-function padZero(number) {
-    return number.toString().padStart(2, "0");
+export function formatMessageTimestamp(dateString) {
+	const date = safeDate(dateString);
+	if (!date) return "";
+
+	return new Intl.DateTimeFormat("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+	}).format(date);
+}
+
+export function formatDateDivider(dateString) {
+	const date = safeDate(dateString);
+	if (!date) return "Unknown date";
+
+	return new Intl.DateTimeFormat("en-US", {
+		weekday: "long",
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+	}).format(date);
+}
+
+// Backward compatibility with existing imports.
+export function extractTime(dateString) {
+	return formatMessageTimestamp(dateString);
 }

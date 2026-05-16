@@ -1,20 +1,23 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import useSearchResults from '../zustand/useSearch';
 import { useAuthContext } from '../context/AuthContext';
+import toast from "react-hot-toast";
 
 const useSearch = () => {
   const [loading, setLoading] = useState(false);
   const { authUser } = useAuthContext();
-  const { searchResults, setSearchResults } = useSearchResults();
+  const { setSearchResults } = useSearchResults();
+  const token = authUser?.jwt;
 
-  const search = async (query) => {
+  const search = useCallback(async (query) => {
+    if (!token) return;
     setLoading(true);
     try {
       const response = await fetch(`${import.meta.env.VITE_API_HOST}/api/user/search?name=${query}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authUser.jwt}`
+            'Authorization': `Bearer ${token}`
           }
         });
       if (!response.ok) {
@@ -27,7 +30,7 @@ const useSearch = () => {
       toast.error(error.message);
       setLoading(false);
     }
-  }
+  }, [setSearchResults, token]);
 
   return {search, loading}
 }

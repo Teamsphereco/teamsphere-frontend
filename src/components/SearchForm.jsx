@@ -1,135 +1,135 @@
-import React, { FormEvent, useEffect, useState } from "react";
-import SearchSvg from "./../components/svg/SearchSvg";
-import useConversation from "../zustand/useConversation";
-import useGetConversations from "../hooks/useGetConversations";
+import { useEffect, useRef, useState } from "react";
+import SearchSvg from "./svg/SearchSvg";
 import useSearch from "../hooks/useSearch";
 import useSearchResults from "../zustand/useSearch";
-import toast from "react-hot-toast";
 import useCreateChat from "../hooks/useCreateChat";
 import useProfile from "../zustand/useProfile";
+import CreateGroupChatFlow from "./Group/CreateGroupChatFlow";
 
-const SearchForm = ({
-}) => {
-
+const SearchForm = () => {
 	const [searchQuery, setSearchQuery] = useState("");
-  const { searchResults, setSearchResults } = useSearchResults();
-  const { search, loading } = useSearch();
-  const { creatingChat, chatData, handleCreateChat } = useCreateChat();
-  const { profile } = useProfile();
+	const [groupFlowOpen, setGroupFlowOpen] = useState(false);
+	const inputRef = useRef(null);
+	const { searchResults, setSearchResults } = useSearchResults();
+	const { search } = useSearch();
+	const { profile } = useProfile();
 
-  useEffect(() => {
-    if (searchQuery.length < 1) {
-      setSearchResults([]);
-      return;
-    }
-    const handler = setTimeout(() => {
-      search(searchQuery);
-    }, 1000); // 1 second debounce
+	useEffect(() => {
+		if (searchQuery.trim().length < 1) {
+			setSearchResults([]);
+			return;
+		}
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchQuery]);
+		const handler = setTimeout(() => {
+			search(searchQuery.trim());
+		}, 350);
 
-  const clearSearchResults = () => {
-    setSearchResults([]);
-    setSearchQuery("");
-  };
+		return () => clearTimeout(handler);
+	}, [search, searchQuery, setSearchResults]);
 
-  return (
-    <div className="w-full relative">
-      <form className="max-w-md mx-auto">
-        <label
-          htmlFor="default-search"
-          className="mb-2 text-sm font-medium sr-only text-white"
-        >
-          Search
-        </label>
-        <div className="relative">
-          <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-            <SearchSvg aria-hidden="true" />
-          </div>
-          <input
-            type="search"
-            id="default-search"
-            name="default-search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full p-4 ps-10 text-sm border rounded-lg bg-gray-700 border-gray-600 placeholder-gray-400 text-white focus:ring-blue-500 focus:border-blue-500"
-            placeholder="chats, groups, files..."
-            required
-          />
-          <button
-            type="submit"
-            className="text-white absolute right-2.5 bottom-2.5 focus:ring-4 focus:outline-none font-medium rounded-lg text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 focus:ring-blue-800"
-          >
-            Search
-          </button>
-        </div>
-      </form>
-      <div className="w-full flex flex-col space-y-2 border-none rounded-md bg-slate-800 py-2">
-        {searchResults && searchResults.length > 0 ? (
-          searchResults.filter(user => user.id !== profile.id).map((filterUser) => (
-            <UserCard
-              key={filterUser.id}
-              username={filterUser.username}
-              profileImageUrl={filterUser.profilePicture}
-              user_id={filterUser.id}
-              profile_id={profile.id}
-              clearSearchResults={clearSearchResults}
-            />
-          ))
-        ) : (
-          <p className="hidden"></p>
-        )}
-      </div>
-    </div>
-  );
+	useEffect(() => {
+		const focusInput = () => {
+			inputRef.current?.focus();
+		};
+		window.addEventListener("focus-dm-search", focusInput);
+		return () => window.removeEventListener("focus-dm-search", focusInput);
+	}, []);
+
+	const clearSearchResults = () => {
+		setSearchResults([]);
+		setSearchQuery("");
+	};
+
+	const filteredUsers = (searchResults || []).filter((user) => user?.id !== profile?.id);
+
+	return (
+		<div className="relative mb-3 w-full">
+			<div className="mb-2 flex items-center justify-between gap-2">
+				<p className="font-mono text-[11px] uppercase text-[#888888]">
+					New direct message
+				</p>
+				<button
+					type="button"
+					onClick={() => setGroupFlowOpen(true)}
+					className="rounded-md border border-[#ebebeb] bg-white px-3 py-1.5 text-[11px] font-medium text-[#171717] transition hover:border-[#a1a1a1]"
+				>
+					New group
+				</button>
+			</div>
+
+			<div className="relative">
+				<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+					<SearchSvg aria-hidden="true" />
+				</div>
+				<input
+					ref={inputRef}
+					type="search"
+					value={searchQuery}
+					onChange={(event) => setSearchQuery(event.target.value)}
+					className="block h-10 w-full rounded-md border border-[#ebebeb] bg-white py-2 pl-10 pr-4 text-sm text-[#171717] placeholder:text-[#888888] focus:border-[#171717] focus:outline-none"
+					placeholder="Search people..."
+				/>
+			</div>
+
+			{filteredUsers.length > 0 ? (
+				<div className="absolute z-20 mt-2 max-h-72 w-full space-y-2 overflow-y-auto rounded-lg border border-[#ebebeb] bg-white p-2 shadow-[0_12px_36px_rgba(0,0,0,0.12)]">
+					{filteredUsers.map((user) => (
+						<UserCard
+							key={user.id}
+							user={user}
+							onCreated={clearSearchResults}
+						/>
+					))}
+				</div>
+			) : null}
+
+			<CreateGroupChatFlow
+				open={groupFlowOpen}
+				onClose={() => setGroupFlowOpen(false)}
+			/>
+		</div>
+	);
 };
 
 export default SearchForm;
 
+function UserCard({ user, onCreated }) {
+	const { creatingChat, handleCreateChat } = useCreateChat();
 
-function UserCard({ username, profileImageUrl, user_id, profile_id, clearSearchResults }) {
-  const { selectedConversation, setSelectedConversation } = useConversation();
-  const { creatingChat, chatData, handleCreateChat } = useCreateChat();
+	const handleDirectChatClick = async () => {
+		await handleCreateChat(user.id, {
+			username: user.username,
+			profileImageUrl: user.profilePicture,
+		});
+		onCreated();
+	};
 
-  useEffect(() => {
-    if (chatData) {
-      const filteredUser = chatData.users.filter(user => user.id !== profile_id);
-      setSelectedConversation({ chatId: chatData.id, user: filteredUser[0]});
-      clearSearchResults();
-    }
-  }, [chatData, profile_id, setSelectedConversation]);
-
-  const handleClick = async (user_id) => {
-    await handleCreateChat(user_id);
-  };
-
-  return (
-    <div className="">
-      <div className="flex items-center justify-center px-2 bg-chat-gray rounded-xl shadow-lg space-y-0 space-x-6">
-        <img className='rounded-2xl w-14' src={profileImageUrl} alt='user avatar' />
-        <div className="flex items-center text-center">
-          <div className="space-y-0.5">
-            <p className="px-4 text-sm text-black font-semibold">{username}</p>
-          </div>
-          <button
-            onClick={() => handleClick(user_id)}
-            className={`px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border ${creatingChat ? 'bg-gray-300' : 'border-purple-200'
-              }`}
-            disabled={creatingChat}
-          >
-            {creatingChat ?
-              <div className="animate-spin inline-block size-6 border-[3px] border-current border-t-transparent text-blue-600 rounded-full" role="status" aria-label="loading">
-                <span className="sr-only">Loading...</span>
-              </div>
-              :
-              'Message'
-            }
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+	return (
+		<div className="flex items-center justify-between rounded-md bg-[#fafafa] px-3 py-2">
+			<div className="flex items-center gap-3">
+				{user.profilePicture ? (
+					<img className='h-10 w-10 rounded-md object-cover' src={user.profilePicture} alt='user avatar' />
+				) : (
+					<div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#f5f5f5] text-sm font-semibold text-[#171717]">
+						{user.username?.charAt(0)?.toUpperCase() || "U"}
+					</div>
+				)}
+				<div>
+					<p className="text-sm font-semibold text-[#171717]">{user.username}</p>
+					<p className="text-xs text-[#888888]">{user.email}</p>
+				</div>
+			</div>
+			<button
+				onClick={handleDirectChatClick}
+				className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+					creatingChat
+						? "cursor-not-allowed bg-[#f5f5f5] text-[#888888]"
+						: "bg-[#171717] text-white hover:bg-[#4d4d4d]"
+				}`}
+				disabled={creatingChat}
+			>
+				{creatingChat ? "..." : "Message"}
+			</button>
+		</div>
+	);
+}

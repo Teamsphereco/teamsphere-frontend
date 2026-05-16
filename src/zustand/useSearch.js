@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 const useSearchResults = create((set) => ({
-    searchResults: null,
+    searchResults: [],
     setSearchResults: (searchResults) => set({ searchResults }),
 }));
 
