@@ -1,6 +1,8 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { useAuthContext } from "../context/AuthContext";
+import { normalizeAuthUser } from "../utils/auth";
+import { setHasLoggedInBefore } from "../utils/landingCta";
 
 const useLogin = () => {
 	const [loading, setLoading] = useState(false);
@@ -23,8 +25,10 @@ const useLogin = () => {
 				throw new Error(data.error);
 			}
 
-			localStorage.setItem("chat-user", JSON.stringify(data));
-			setAuthUser(data);
+			const normalizedAuthUser = normalizeAuthUser(data);
+			localStorage.setItem("chat-user", JSON.stringify(normalizedAuthUser));
+			setHasLoggedInBefore();
+			setAuthUser(normalizedAuthUser);
 		} catch (error) {
 			toast.error("Invalid username or password");
 		} finally {

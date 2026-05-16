@@ -1,71 +1,201 @@
-import React, {ChangeEvent, FormEvent, useState} from "react";
+/* eslint-disable react/prop-types */
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import ImageCropModal from "./ImageCropModal";
 
-export default function Profile({ onSubmit, onChange, formData, onStateChange, onLoading}) {
-    return (
-        <div className="h-screen flex flex-col justify-center mx-auto max-w-sm space-y-6">
-            <form className="space-y-6" onSubmit={onSubmit}>
-                <div className="space-y-2 text-center">
-                    <h1 className="text-3xl font-bold">Create Your Profile</h1>
-                </div>
-                <div className="space-y-4">
-                    <p className="text-sm text-gray-400">Choose a unique username and upload your profile image</p>
-                    <div className="space-y-2">
-                        <label className="block mb-2 font-medium text-gray-900 dark:text-white"
-                               htmlFor="username">Username</label>
-                        <input
-                            className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                            id="username"
-                            type="text"
-                            name="username"
-                            placeholder="Enter your username"
-                            value={formData.username}
-                            onChange={(e) => onChange(e, 'input')}
-                            required
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="block mb-2 font-medium text-gray-900 dark:text-white" htmlFor="profileImage">Profile
-                            Image</label>
-                        <input
-                            className="block w-full mb-5 text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
-                            accept="image/*"
-                            id="profileImage"
-                            name="file"
-                            type="file"
-                            onChange={(e) => onChange(e, 'file')}
-                        />
-                    </div>
-                    {formData.file && (
-                        <img
-                            src={URL.createObjectURL(formData.file)}
-                            alt="Profile Image Preview"
-                            className="w-48 h-48 rounded-full"
-                        />
-                    )}
-                    <div className="flex justify-between">
-                        <button
-                            type="button"
-                            className="w-full px-5 py-3 text-base font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 sm:w-auto dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                            onClick={onStateChange}
-                        >
-                            Back
-                        </button>
-                        <button
-                            type="submit"
-                            className="w-full px-5 py-3 text-base font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 sm:w-auto dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                            disabled={onLoading}
-                        >
-                            {onLoading ? 
-                                <div className="animate-spin inline-block size-6 border-[3px] border-current border-t-transparent text-blue-600 rounded-full" role="status" aria-label="loading">
-                                    <span className="sr-only">Loading...</span>
-                                </div>
-                            : "Submit"}
-                        </button>
-                    </div>
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const inputClass =
+	"block h-10 w-full rounded-md border border-[#ebebeb] bg-white px-3 text-sm text-[#171717] placeholder:text-[#888888] transition focus:border-[#a1a1a1] focus:outline-none focus:ring-2 focus:ring-[#171717]/10";
 
-                </div>
-            </form>
-        </div>
-    );
+export default function Profile({
+	onSubmit,
+	onChange,
+	onProfileImageChange,
+	formData,
+	onStateChange,
+	onLoading,
+}) {
+	const [cropSourceFile, setCropSourceFile] = useState(null);
+	const [cropOpen, setCropOpen] = useState(false);
+	const [previewUrl, setPreviewUrl] = useState("");
 
+	useEffect(() => {
+		if (!formData?.file) {
+			setPreviewUrl("");
+			return undefined;
+		}
+		const nextPreviewUrl = URL.createObjectURL(formData.file);
+		setPreviewUrl(nextPreviewUrl);
+		return () => URL.revokeObjectURL(nextPreviewUrl);
+	}, [formData?.file]);
+
+	const handleImageInputChange = (event) => {
+		const file = event.target.files?.[0];
+		if (!file) return;
+
+		if (!file.type?.startsWith("image/")) {
+			toast.error("Please choose an image file");
+			event.target.value = "";
+			return;
+		}
+
+		if (file.size > MAX_FILE_SIZE_BYTES) {
+			toast.error("File size must be less than 10MB");
+			event.target.value = "";
+			return;
+		}
+
+		setCropSourceFile(file);
+		setCropOpen(true);
+		event.target.value = "";
+	};
+
+	const closeCropper = () => {
+		setCropOpen(false);
+		setCropSourceFile(null);
+	};
+
+	const handleApplyCrop = (croppedFile) => {
+		onProfileImageChange?.(croppedFile);
+		closeCropper();
+	};
+
+	return (
+		<section className="relative min-h-screen overflow-hidden bg-[#fafafa] px-4 py-8 font-['Inter',system-ui,-apple-system,sans-serif] text-[#171717] selection:bg-[#171717] selection:text-[#f2f2f2] sm:px-6 lg:px-8">
+			<div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_22%_40%,#50e3c2_0%,transparent_24%),radial-gradient(circle_at_44%_36%,#007cf0_0%,transparent_25%),radial-gradient(circle_at_62%_48%,#7928ca_0%,transparent_24%),radial-gradient(circle_at_78%_56%,#ff0080_0%,transparent_22%),radial-gradient(circle_at_58%_72%,#f9cb28_0%,transparent_20%)] opacity-20 blur-3xl" />
+			<div className="relative mx-auto grid min-h-[calc(100vh-64px)] w-full max-w-[1180px] items-center gap-8 py-12 lg:grid-cols-[0.95fr_1.05fr]">
+				<div className="hidden lg:block">
+					<p className="font-mono text-xs text-[#888888]">TEAMSPHERE</p>
+					<h1 className="mt-5 max-w-xl text-[48px] font-semibold leading-[48px] tracking-[-2.4px] text-[#171717]">
+						Finish with a face people can find fast.
+					</h1>
+					<p className="mt-5 max-w-lg text-lg leading-7 text-[#4d4d4d]">
+						Crop a clean avatar, choose a recognizable username, and enter Teamsphere with a profile that feels ready for real conversations.
+					</p>
+					<div className="mt-8 rounded-lg border border-[#ebebeb] bg-white p-5 shadow-[0px_1px_1px_#00000005,0px_2px_2px_#0000000a,0_0_0_1px_#00000014_inset]">
+						<p className="font-mono text-xs text-[#888888]">Setup flow</p>
+						<div className="mt-4 grid grid-cols-2 gap-3">
+							<div className="rounded-md border border-[#ebebeb] bg-[#fafafa] p-3 text-[#4d4d4d]">
+								<p className="font-mono text-[11px] text-[#888888]">01</p>
+								<p className="mt-1 text-sm font-medium">Account</p>
+							</div>
+							<div className="rounded-md bg-[#171717] p-3 text-white">
+								<p className="font-mono text-[11px] text-white/60">02</p>
+								<p className="mt-1 text-sm font-medium">Profile photo</p>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<form className="w-full rounded-xl border border-[#ebebeb] bg-white p-6 shadow-[0px_1px_1px_#00000005,0px_8px_16px_-4px_#0000000a,0px_24px_32px_-8px_#0000000f,0_0_0_1px_#00000014_inset] sm:p-8 lg:ml-auto lg:max-w-md" onSubmit={onSubmit}>
+					<p className="font-mono text-xs text-[#888888]">Step 02 / Profile</p>
+					<h1 className="mt-3 text-2xl font-semibold leading-8 tracking-[-0.96px] text-[#171717]">Create your profile.</h1>
+					<p className="mt-2 text-sm leading-6 text-[#4d4d4d]">
+						Choose a username and add an optional avatar. You can crop the image before it is saved.
+					</p>
+
+					<div className="mt-6 space-y-5">
+						<div>
+							<label className="mb-2 block text-sm font-medium text-[#171717]" htmlFor="username">
+								Username
+							</label>
+							<input
+								className={inputClass}
+								id="username"
+								type="text"
+								name="username"
+								placeholder="maya-chen"
+								value={formData.username}
+								onChange={(e) => onChange(e, "input")}
+								minLength={2}
+								required
+							/>
+						</div>
+
+						<div>
+							<label className="mb-2 block text-sm font-medium text-[#171717]" htmlFor="profileImage">
+								Profile image
+							</label>
+							<div className="rounded-lg border border-dashed border-[#a1a1a1] bg-[#fafafa] p-4">
+								<div className="flex items-center gap-4">
+									{previewUrl ? (
+										<img
+											src={previewUrl}
+											alt="Profile image preview"
+											className="h-16 w-16 rounded-full border border-[#ebebeb] object-cover"
+										/>
+									) : (
+										<div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#ebebeb] bg-white font-mono text-xs text-[#888888]">
+											IMG
+										</div>
+									)}
+									<div className="min-w-0 flex-1">
+										<p className="text-sm font-medium text-[#171717]">Upload and crop</p>
+										<p className="mt-1 text-xs leading-5 text-[#4d4d4d]">Drag to reposition, zoom for framing, then apply the crop.</p>
+									</div>
+								</div>
+								<div className="mt-4 flex flex-wrap gap-2">
+									<label htmlFor="profileImage" className="inline-flex h-9 cursor-pointer items-center rounded-md bg-[#171717] px-3 text-sm font-medium text-white transition hover:bg-black">
+										{previewUrl ? "Replace image" : "Choose image"}
+									</label>
+									{previewUrl ? (
+										<button
+											type="button"
+											onClick={() => onProfileImageChange?.(null)}
+											className="inline-flex h-9 items-center rounded-md border border-[#ebebeb] bg-white px-3 text-sm font-medium text-[#171717] transition hover:border-[#a1a1a1] hover:bg-[#fafafa]"
+										>
+											Remove
+										</button>
+									) : null}
+								</div>
+								<input
+									className="sr-only"
+									accept="image/*"
+									id="profileImage"
+									name="file"
+									type="file"
+									onChange={handleImageInputChange}
+								/>
+							</div>
+						</div>
+
+						<div className="grid grid-cols-2 gap-2 pt-1">
+						<button
+							type="button"
+							className="inline-flex h-11 items-center justify-center rounded-md border border-[#ebebeb] bg-white px-4 text-sm font-medium text-[#171717] transition hover:border-[#a1a1a1] hover:bg-[#fafafa]"
+							onClick={onStateChange}
+						>
+							Back
+						</button>
+						<button
+							type="submit"
+							className="inline-flex h-11 items-center justify-center rounded-md bg-[#171717] px-4 text-sm font-medium text-white shadow-[0px_1px_1px_#00000005,0px_2px_2px_#0000000a] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
+							disabled={onLoading}
+						>
+							{onLoading ? (
+								<div
+									className="inline-block size-5 animate-spin rounded-full border-[2px] border-current border-t-transparent"
+									role="status"
+									aria-label="loading"
+								>
+									<span className="sr-only">Loading...</span>
+								</div>
+							) : (
+								"Create account"
+							)}
+						</button>
+					</div>
+				</div>
+			</form>
+			</div>
+
+			<ImageCropModal
+				open={cropOpen}
+				sourceFile={cropSourceFile}
+				title="Crop profile image"
+				onCancel={closeCropper}
+				onApply={handleApplyCrop}
+			/>
+		</section>
+	);
 }

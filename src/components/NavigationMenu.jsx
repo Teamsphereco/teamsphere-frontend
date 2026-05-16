@@ -1,51 +1,73 @@
-import React from "react";
-import logo from "./../assets/logo.png"
 import FolderSvg from "./svg/FolderSvg"
 import CalendarSvg from "./svg/CalendarSvg"
 import RatingSvg from "./svg/RatingSvg"
 import SavedSvg from "./svg/SaveSvg"
-import SettingsSvg from "./svg/SettingsSvg"
 import ChatsSvg from "./svg/ChatSvg";
+import SettingsSvg from "./svg/SettingsSvg";
 import LogoutButton from "./LogoutButton";
+import useProfile from "../zustand/useProfile";
+import { NavLink } from "react-router-dom";
 
 const navItems = [
-  { id: 1, href: "#", component: <ChatsSvg className="w-5 mb-2 stroke-white" />, label: "All chats" },
-  { id: 2, href: "#", component: <FolderSvg className="fill-white w-5 mb-2" />, label: "Work" },
-  { id: 3, href: "#", component: <FolderSvg className="fill-white w-5 mb-2" />, label: "Meet" },
-  { id: 4, href: "#", component: <CalendarSvg className="fill-white w-5 mb-2" />, label: "Calendar" },
-  { id: 5, href: "#", component: <RatingSvg className="fill-white w-5 mb-2" />, label: "Rating" },
-  { id: 6, href: "#", component: <SavedSvg className="fill-white w-5 mb-2" />, label: "Saved" },
-  { id: 7, href: "#", component: <SettingsSvg className="fill-white w-5 mb-2" />, label: "Settings" },
+  { id: 1, to: "/chat", component: <ChatsSvg className="mb-1 w-5 stroke-current" />, label: "All chats" },
+  { id: 2, href: "#", component: <FolderSvg className="mb-1 w-5 fill-current" />, label: "Work" },
+  { id: 3, href: "#", component: <FolderSvg className="mb-1 w-5 fill-current" />, label: "Meet" },
+  { id: 4, href: "#", component: <CalendarSvg className="mb-1 w-5 fill-current" />, label: "Calendar" },
+  { id: 5, href: "#", component: <RatingSvg className="mb-1 w-5 fill-current" />, label: "Rating" },
+  { id: 6, href: "#", component: <SavedSvg className="mb-1 w-5 fill-current" />, label: "Saved" },
+  { id: 7, to: "/settings", component: <SettingsSvg className="mb-1 w-5 fill-current" />, label: "Settings" },
 ];
 
 function NavigationMenu() {
+  const { profile } = useProfile();
+  const displayName = profile?.username || "Profile";
+  const hasProfilePicture = Boolean(profile?.profilePicture);
+
   return (
-    <div className="hidden md:flex md:flex-col md:items-center h-screen text-neutral-400 w-40 text-sm justify-between bg-chat-dark">
-      {/* Logo */}
-      <div className="mb-16 pt-4">
-            <a href="#">
-                <img src={logo} alt="Teamsphere company logo" />
-            </a>
+    <div className="hidden h-dvh w-24 flex-col justify-between border-r border-[#ebebeb] bg-white py-4 text-sm text-[#888888] md:flex md:items-center">
+      <div className="mb-8 px-2">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-[#ebebeb] bg-[#fafafa] px-2 py-3">
+          {hasProfilePicture ? (
+            <img
+              src={profile.profilePicture}
+              alt={`${displayName} profile avatar`}
+              className="h-10 w-10 rounded-md object-cover"
+            />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#171717] text-sm font-semibold text-white">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <p className="w-full truncate text-center text-[11px] font-medium text-[#171717]">
+            {displayName}
+          </p>
+        </div>
       </div>
-      <div className="h-1/2 flex flex-col justify-between mb-52">
-        {navItems.slice(0, 6).map(item => (
+
+      <div className="mb-12 flex h-1/2 flex-col justify-between">
+        {navItems.map(item => (
           <div key={item.id}>
-            <a href={item.href} className="flex flex-col items-center">
-              {item.component}
-              <h1>{item.label}</h1>
-            </a>
+            {item.to ? (
+              <NavLink
+                to={item.to}
+                className={({ isActive }) => `flex flex-col items-center gap-1 rounded-md px-2 py-1 transition hover:bg-[#fafafa] hover:text-[#171717] ${
+                  isActive ? "bg-[#fafafa] text-[#171717]" : ""
+                }`}
+              >
+                {item.component}
+                <h1 className="text-[11px]">{item.label}</h1>
+              </NavLink>
+            ) : (
+              <a href={item.href} className="flex flex-col items-center gap-1 rounded-md px-2 py-1 transition hover:bg-[#fafafa] hover:text-[#171717]">
+                {item.component}
+                <h1 className="text-[11px]">{item.label}</h1>
+              </a>
+            )}
           </div>
         ))}
-        <div className="border-t border-gray-400 w-full h-0"></div>
+        <div className="h-0 w-full border-t border-[#ebebeb]"></div>
       </div>
       <LogoutButton />
-      {/* Settings Section */}
-      <div className="mb-4">
-        <a href={navItems[6].href} className="flex flex-col items-center">
-          {navItems[6].component}
-          <h1>{navItems[6].label}</h1>
-        </a>
-      </div>
     </div>
   );
 }

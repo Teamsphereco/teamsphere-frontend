@@ -1,10 +1,10 @@
-import {useState} from "react";
+import { useState } from "react";
 import SignUp from "../../components/SignUp";
 import Profile from "../../components/Profile";
 import useSignup from "../../hooks/useSignup";
 
-export default function Signup(){
-    const [state, setState] = useState(true)
+export default function Signup() {
+    const [state, setState] = useState(true);
 
     const toggleButton = () => {
         setState(!state);
@@ -13,17 +13,24 @@ export default function Signup(){
     const [formData, setFormData] = useState({
         email: "",
         password: "",
-        username:"",
-        file:undefined 
+        username: "",
+        file: undefined,
     });
 
     const handleInputChange = (e, type) => {
         const { name, value, files } = e.target;
-        const selectedFile = type === 'file' ? files?.[0] : undefined;
+        const selectedFile = type === "file" ? files?.[0] : undefined;
     
         setFormData((prevData) => ({
             ...prevData,
-            [name]: type === 'file' ? selectedFile : value,
+            [name]: type === "file" ? selectedFile : value,
+        }));
+    };
+
+    const handleProfileImageChange = (file) => {
+        setFormData((prevData) => ({
+            ...prevData,
+            file: file || undefined,
         }));
     };
 
@@ -33,23 +40,22 @@ export default function Signup(){
         e.preventDefault();
         await signup(formData);
     };
-
-
     return (
-        <div className="bg-gray-50 dark:bg-gray-900 text-white">
+        <div className="min-h-screen bg-[#fafafa] text-[#171717]">
             {state ?
                 <SignUp
                     onChange={handleInputChange}
                     formData={formData}
-                    onStateChange={toggleButton }
+                    onStateChange={toggleButton}
 
                 />
             :
                 <Profile
                     onSubmit={handleSubmit}
                     onChange={handleInputChange}
+                    onProfileImageChange={handleProfileImageChange}
                     formData={formData}
-                    onStateChange={toggleButton }
+                    onStateChange={toggleButton}
                     onLoading={loading}
                 />
             }

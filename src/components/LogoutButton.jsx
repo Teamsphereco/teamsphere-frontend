@@ -4,17 +4,17 @@ const LogoutButton = () => {
 	const { loading, logout } = useLogout();
 
 	return (
-		<div className='mt-auto'>
+		<div className='mt-auto px-2'>
 			{!loading ? (
                 <button
                     type="button"
-                    className="w-full px-5 py-3 text-base font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 sm:w-auto dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+					className="w-full rounded-md border border-[#ebebeb] bg-white px-3 py-2 text-xs font-medium text-[#171717] transition hover:border-[#a1a1a1]"
                     onClick={logout}
                 >
                     Logout
                 </button>
 			) : (
-				<span className='loading loading-spinner'></span>
+				<span className='text-xs text-[#888888]'>...</span>
 			)}
 		</div>
 	);

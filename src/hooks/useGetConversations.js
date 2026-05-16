@@ -1,23 +1,35 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import { useAuthContext } from "../context/AuthContext";
+import useConversation from "../zustand/useConversation";
+
+const PAGE_SIZE = 100;
 
 const useGetConversations = () => {
-	const [loading, setLoading] = useState(false);
-	const [conversations, setConversations] = useState([]);
-	const [page, setPage] = useState(0);
-	const [hasMore, setHasMore] = useState(true);
 	const { authUser } = useAuthContext();
+	const token = authUser?.jwt;
+	const {
+		conversations,
+		conversationsLoading,
+		conversationsPage,
+		conversationsHasMore,
+		setConversationsLoading,
+		setConversationPagination,
+		resetConversationSession,
+		replaceConversations,
+		appendConversations,
+	} = useConversation();
 
-	const fetchConversations = useCallback(async (pageNumber) => {
-		if (!hasMore || loading) return;
-		setLoading(true);
+	const fetchConversations = useCallback(async (pageNumber, mode = "append", options = {}) => {
+		const { silent = false, updatePagination = true } = options;
+		if (!token) return;
+		setConversationsLoading(true);
 		try {
-			const response = await fetch(`${import.meta.env.VITE_API_HOST}/api/chat/summaries?page=${pageNumber}&size=10`, {
+			const response = await fetch(`${import.meta.env.VITE_API_HOST}/api/chat/summaries?page=${pageNumber}&size=${PAGE_SIZE}`, {
 				method: 'GET',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${authUser.jwt}`
+					'Authorization': `Bearer ${token}`
 				}
 			});
 
@@ -30,43 +42,73 @@ const useGetConversations = () => {
 				throw new Error(data.error);
 			}
 
-			if (data.length === 0) {
-				setHasMore(false);
+			if (mode === "replace") {
+				replaceConversations(data);
 			} else {
-				setConversations(prevConversations => {
-					const newConversations = pageNumber === 0 ? data : [...prevConversations, ...data];
-					const uniqueConversations = Array.from(new Set(newConversations.map(c => c.id)))
-						.map(id => newConversations.find(c => c.id === id));
-					return uniqueConversations;
+				appendConversations(data);
+			}
+
+			if (updatePagination) {
+				setConversationPagination({
+					page: pageNumber + 1,
+					hasMore: data.length === PAGE_SIZE,
 				});
-				setPage(prevPage => pageNumber === 0 ? 1 : prevPage + 1);
-				setHasMore(data.length === 10);
 			}
 		} catch (error) {
-			toast.error(error.message);
-			setHasMore(false);
+			if (!silent) {
+				toast.error(error.message);
+			}
+			if (updatePagination) {
+				setConversationPagination({
+					page: pageNumber,
+					hasMore: false,
+				});
+			}
 		} finally {
-			setLoading(false);
+			setConversationsLoading(false);
 		}
-	}, [authUser.jwt]);
+	}, [
+		appendConversations,
+		replaceConversations,
+		setConversationPagination,
+		setConversationsLoading,
+		token,
+	]);
 
 	useEffect(() => {
-		fetchConversations(0);
-	}, [fetchConversations]);
+		// Token change can happen when switching accounts; clear stale chat state first.
+		resetConversationSession();
+		if (!token) {
+			return;
+		}
+		setConversationPagination({
+			page: 0,
+			hasMore: true,
+		});
+		fetchConversations(0, "replace");
+	}, [fetchConversations, resetConversationSession, setConversationPagination, token]);
 
 	const loadMore = useCallback(() => {
-		if (!loading && hasMore) {
-			fetchConversations(page);
+		if (!conversationsLoading && conversationsHasMore) {
+			fetchConversations(conversationsPage, "append");
 		}
-	}, [loading, hasMore, page, fetchConversations]);
+	}, [conversationsHasMore, conversationsLoading, conversationsPage, fetchConversations]);
 
 	const refreshConversations = useCallback(() => {
-		setPage(0);
-		setHasMore(true);
-		fetchConversations(0);
-	}, [fetchConversations]);
+		setConversationPagination({
+			page: 0,
+			hasMore: true,
+		});
+		fetchConversations(0, "replace");
+	}, [fetchConversations, setConversationPagination]);
 
-	return { loading, conversations, loadMore, hasMore, refreshConversations };
+	return {
+		loading: conversationsLoading,
+		conversations,
+		loadMore,
+		hasMore: conversationsHasMore,
+		refreshConversations,
+	};
 };
 
 export default useGetConversations;
