@@ -8,6 +8,8 @@ export default function Conversations() {
     const observer = useRef();
     const containerRef = useRef();
     const [groupFlowOpen, setGroupFlowOpen] = useState(false);
+    const requestedConversations = conversations.filter((conversation) => conversation?.requestIncoming);
+    const visibleConversations = conversations.filter((conversation) => !conversation?.requestIncoming);
 
     const lastConversationRef = useCallback(node => {
         if (loading) return;
@@ -32,14 +34,22 @@ export default function Conversations() {
             <div className="mb-2 flex items-center justify-between px-2 py-1">
                 <div>
                     <h2 className="font-mono text-[11px] uppercase text-[#888888]">Recent Chats</h2>
-                    <p className="text-xs text-[#4d4d4d]">{conversations.length} active</p>
+                    <p className="text-xs text-[#4d4d4d]">{visibleConversations.length} active</p>
                 </div>
             </div>
 
             <div ref={containerRef} className='scrollbar-thin flex-1 space-y-2 overflow-y-auto pr-1 pb-16'>
-                {conversations.map((conversation, index) => (
+                {requestedConversations.length > 0 ? (
+                    <div className="space-y-2 rounded-md border border-[#ffefcf] bg-[#fff8ea] p-2">
+                        <p className="px-1 font-mono text-[11px] uppercase text-[#8a5a00]">Requested chats</p>
+                        {requestedConversations.map((conversation) => (
+                            <Conversation key={conversation.id} conversation={conversation} />
+                        ))}
+                    </div>
+                ) : null}
+                {visibleConversations.map((conversation, index) => (
                     <div
-                        ref={index === conversations.length - 1 ? lastConversationRef : null}
+                        ref={index === visibleConversations.length - 1 ? lastConversationRef : null}
                         key={conversation.id}
                     >
                         <Conversation conversation={conversation} />

@@ -4,6 +4,7 @@ import { useAuthContext } from "../../context/AuthContext";
 import ImageCropModal from "../ImageCropModal";
 import useCreateGroupChat from "../../hooks/useCreateGroupChat";
 import useProfile from "../../zustand/useProfile";
+import { getFriends } from "../../utils/socialApi";
 
 const STEPS = {
 	DETAILS: 1,
@@ -27,6 +28,7 @@ function CreateGroupChatFlow({ open, onClose }) {
 	const [loadingSearch, setLoadingSearch] = useState(false);
 	const [searchError, setSearchError] = useState("");
 	const [searchResults, setSearchResults] = useState([]);
+	const [friends, setFriends] = useState([]);
 	const [selectedMembers, setSelectedMembers] = useState([]);
 	const [draft, setDraft] = useState(initialDraft);
 	const [groupImageFile, setGroupImageFile] = useState(null);
@@ -56,6 +58,29 @@ function CreateGroupChatFlow({ open, onClose }) {
 	}, [open]);
 
 	useEffect(() => {
+		if (!open || !token) return undefined;
+		let cancelled = false;
+
+		const loadFriends = async () => {
+			try {
+				const payload = await getFriends({ token });
+				if (!cancelled) {
+					setFriends(Array.isArray(payload) ? payload : []);
+				}
+			} catch {
+				if (!cancelled) {
+					setFriends([]);
+				}
+			}
+		};
+
+		void loadFriends();
+		return () => {
+			cancelled = true;
+		};
+	}, [open, token]);
+
+	useEffect(() => {
 		if (!groupImageFile) {
 			setGroupImagePreviewUrl("");
 			return undefined;
@@ -73,38 +98,21 @@ function CreateGroupChatFlow({ open, onClose }) {
 			return undefined;
 		}
 
-		const timeoutId = setTimeout(async () => {
+		const timeoutId = setTimeout(() => {
 			setLoadingSearch(true);
 			setSearchError("");
-			try {
-				const response = await fetch(
-					`${import.meta.env.VITE_API_HOST}/api/user/search?name=${encodeURIComponent(query.trim())}`,
-					{
-						method: "GET",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
-						},
-					}
-				);
-				if (!response.ok) {
-					throw new Error("Failed to search users");
-				}
-				const users = await response.json();
-				const filtered = (Array.isArray(users) ? users : []).filter(
-					(user) => String(user?.id) !== String(profile?.id)
-				);
-				setSearchResults(filtered);
-			} catch (error) {
-				setSearchError(error.message || "Unable to search users");
-				setSearchResults([]);
-			} finally {
-				setLoadingSearch(false);
-			}
+			const normalizedQuery = query.trim().toLowerCase();
+			const filtered = friends.filter((user) => {
+				if (String(user?.id) === String(profile?.id)) return false;
+				const searchable = `${user?.username || ""} ${user?.nickname || ""}`.toLowerCase();
+				return searchable.includes(normalizedQuery);
+			});
+			setSearchResults(filtered);
+			setLoadingSearch(false);
 		}, 260);
 
 		return () => clearTimeout(timeoutId);
-	}, [open, profile?.id, query, token]);
+	}, [friends, open, profile?.id, query, token]);
 
 	const toggleMember = (user) => {
 		if (!user?.id) return;
@@ -295,7 +303,7 @@ function CreateGroupChatFlow({ open, onClose }) {
 									) : query.trim().length < 2 ? (
 										<p className="text-xs text-slate-500">Type at least 2 characters to search.</p>
 									) : searchResults.length === 0 ? (
-										<p className="text-xs text-slate-500">No users found.</p>
+										<p className="text-xs text-slate-500">No friends found.</p>
 									) : (
 										searchResults.map((user) => {
 											const selected = selectedMemberIds.has(String(user.id));
@@ -311,8 +319,8 @@ function CreateGroupChatFlow({ open, onClose }) {
 													}`}
 												>
 													<div className="min-w-0">
-														<p className="truncate text-sm font-semibold text-slate-100">{user.username}</p>
-														<p className="truncate text-xs text-slate-400">{user.email}</p>
+														<p className="truncate text-sm font-semibold text-slate-100">{user.nickname || user.username}</p>
+														<p className="truncate text-xs text-slate-400">@{user.username}</p>
 													</div>
 													<span className={`rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${
 														selected ? "bg-emerald-500 text-slate-900" : "bg-cyan-500 text-slate-900"
@@ -360,8 +368,8 @@ function CreateGroupChatFlow({ open, onClose }) {
 											key={member.id}
 											className="flex items-center justify-between rounded-xl border border-slate-700 bg-slate-800/70 px-3 py-2"
 										>
-											<p className="text-sm font-medium text-slate-100">{member.username}</p>
-											<p className="text-xs text-slate-400">{member.email}</p>
+											<p className="text-sm font-medium text-slate-100">{member.nickname || member.username}</p>
+											<p className="text-xs text-slate-400">@{member.username}</p>
 										</div>
 									))}
 								</div>

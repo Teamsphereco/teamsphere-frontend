@@ -5,7 +5,7 @@ import useConversation from "../zustand/useConversation";
 const TYPING_DEBOUNCE_MS = 2600;
 const BLUR_STOP_DELAY_MS = 3400;
 
-const ChatInput = () => {
+const ChatInput = ({ disabled = false }) => {
 	const [message, setMessage] = useState("");
 	const { loading, sendMessage } = useSendMessage();
 	const {
@@ -117,6 +117,9 @@ const ChatInput = () => {
 		}
 
 		const handleGlobalKeyDown = (event) => {
+			if (disabled) {
+				return;
+			}
 			if (event.defaultPrevented || event.isComposing) {
 				return;
 			}
@@ -154,10 +157,11 @@ const ChatInput = () => {
 
 		window.addEventListener("keydown", handleGlobalKeyDown);
 		return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-	}, [applyMessageUpdate, message, selectedConversation?.chatId]);
+	}, [applyMessageUpdate, disabled, message, selectedConversation?.chatId]);
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
+		if (disabled) return;
 		const content = message.trim();
 		if (!content) return;
 		const sent = await sendMessage(content);
@@ -180,6 +184,7 @@ const ChatInput = () => {
 	};
 
 	const handleChange = (e) => {
+		if (disabled) return;
 		const nextValue = e.target.value;
 		applyMessageUpdate(nextValue);
 	};
@@ -197,16 +202,17 @@ const ChatInput = () => {
 						rows={1}
 						data-testid="chat-input-textarea"
 						className='max-h-28 min-h-[44px] w-full resize-none rounded-md border-0 bg-transparent px-3 py-2 text-sm text-[#171717] placeholder:text-[#888888] focus:outline-none focus:ring-0'
-						placeholder='Type a message...'
+						placeholder={disabled ? "Messaging unavailable" : "Type a message..."}
 						value={message}
 						onChange={handleChange}
 						onKeyDown={handleKeyDown}
 						onBlur={() => scheduleTypingStop(BLUR_STOP_DELAY_MS)}
+						disabled={disabled}
 					/>
 					<button
 						type='submit'
 						className='inline-flex h-10 w-10 items-center justify-center rounded-md bg-[#171717] text-white transition hover:bg-[#4d4d4d] disabled:cursor-not-allowed disabled:bg-[#f5f5f5] disabled:text-[#a1a1a1]'
-						disabled={loading || !message.trim()}
+						disabled={disabled || loading || !message.trim()}
 					>
 						{loading ? (
 							<div

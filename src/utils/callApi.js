@@ -50,3 +50,6 @@ export const createJoinToken = ({ token, callId }) =>
 
 export const getActiveCalls = ({ token }) =>
 	callRequest("/api/calls/active", token, { method: "GET" });
+
+export const getChatCallHistory = ({ token, chatId }) =>
+	callRequest(`/api/calls/chat/${chatId}`, token, { method: "GET" });

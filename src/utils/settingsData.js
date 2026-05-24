@@ -22,7 +22,7 @@ export const settingsGroups = [
 ];
 
 export const categories = [
-  { id: "profile", label: "Profile", icon: "user", badge: "Live" },
+  { id: "profile", label: "Profile", icon: "user" },
   { id: "account-security", label: "Account & Security", icon: "shield", badge: "Needs attention" },
   { id: "devices-sessions", label: "Devices & Sessions", icon: "devices", badge: "3" },
   { id: "notifications", label: "Notifications", icon: "bell" },
@@ -573,7 +573,7 @@ export const settingsContent = {
         title: "Discovery",
         rows: [
           row("phone", "Find by phone", "Let people who have your phone number find you.", toggle("findByPhone")),
-          row("email", "Find by email", "Let people who know your email find your profile.", toggle("findByEmail")),
+          row("handle", "Find by handle", "Let people search your public @handle.", toggle("findByHandle")),
           row("mutual", "Mutual contacts", "Show mutual contact context in search results.", toggle("mutualContacts")),
         ],
       },
@@ -758,7 +758,7 @@ export const previewCopy = {
   "audio-video": "Device lists use browser media devices when available, with sample fallback values.",
   accessibility: "Reading, motion, input, and call accessibility are grouped as first-class settings.",
   "privacy-safety": "The privacy checkup summarizes the strongest active protections.",
-  "blocked-users": "Blocked-user state is local and can be changed safely.",
+  "blocked-users": "Blocked users are loaded from your account and can be unblocked with confirmation.",
   contacts: "Contact sync and discovery settings clearly separate privacy-sensitive controls.",
   "data-storage": "Storage totals are sample values with a working clear-cache action.",
   backups: "Backup settings are placeholders for future real persistence.",
@@ -776,7 +776,7 @@ export const getSearchResults = (query) => {
     return [];
   }
 
-  return categories.flatMap((category) => {
+  return categories.filter((category) => category.id !== "profile").flatMap((category) => {
     const content = settingsContent[category.id];
     const rows = content.groups.flatMap((group) => group.rows.map((item) => ({ ...item, group: group.title })));
     const categoryMatch = `${category.label} ${content.title} ${content.description}`.toLowerCase().includes(normalizedQuery);

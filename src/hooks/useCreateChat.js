@@ -30,6 +30,9 @@ const useCreateChat = () => {
           id: newChatData.id,
           chatName: options.username || newChatData.chatName || "New chat",
           chatImage: options.profileImageUrl || newChatData.chatImage || null,
+          requestStatus: newChatData.requestStatus,
+          requestedBy: newChatData.requestedBy,
+          requestIncoming: false,
           lastMessage: null,
           unreadCount: 0,
         };
@@ -39,14 +42,19 @@ const useCreateChat = () => {
           chatId: newChatData.id,
           chatName: conversationSummary.chatName,
           chatImage: conversationSummary.chatImage,
+          requestStatus: conversationSummary.requestStatus,
+          requestedBy: conversationSummary.requestedBy,
+          requestIncoming: conversationSummary.requestIncoming,
         });
         
         toast.success('Chat created successfully');
+        return newChatData;
       } else {
         throw new Error('Failed to create chat');
       }
     } catch (error) {
       toast.error('Error creating chat');
+      return null;
     } finally {
       setCreatingChat(false);
     }

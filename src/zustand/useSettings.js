@@ -102,7 +102,7 @@ export const defaultSettings = {
   syncContacts: false,
   suggestedContacts: true,
   findByPhone: false,
-  findByEmail: true,
+  findByHandle: true,
   mutualContacts: true,
   readingFontSize: 16,
   highContrast: false,

@@ -44,15 +44,14 @@ const Settings = () => {
 
   const profileSummary = useMemo(() => {
     const authProfile = authUser?.user || {};
-    const name = profile?.displayName
+    const name = profile?.nickname
+      || profile?.displayName
       || profile?.fullName
-      || profile?.username
       || authUser?.fullName
+      || authProfile.nickname
       || authProfile.username
       || "TeamSphere User";
-    const handle = profile?.email
-      || authProfile.email
-      || (profile?.username ? `@${profile.username}` : "@teamsphere");
+    const handle = profile?.username || authProfile.username ? `@${profile?.username || authProfile.username}` : "@teamsphere";
     const avatarUrl = profile?.profilePicture || profile?.avatarUrl || authProfile.profilePicture || "";
 
     return {

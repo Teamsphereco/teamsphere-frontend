@@ -91,24 +91,41 @@ export default function Profile({
 					<p className="font-mono text-xs text-[#888888]">Step 02 / Profile</p>
 					<h1 className="mt-3 text-2xl font-semibold leading-8 tracking-[-0.96px] text-[#171717]">Create your profile.</h1>
 					<p className="mt-2 text-sm leading-6 text-[#4d4d4d]">
-						Choose a username and add an optional avatar. You can crop the image before it is saved.
+						Choose a unique @handle, set a display nickname, and add an optional avatar.
 					</p>
 
 					<div className="mt-6 space-y-5">
 						<div>
 							<label className="mb-2 block text-sm font-medium text-[#171717]" htmlFor="username">
-								Username
+								Handle
 							</label>
 							<input
 								className={inputClass}
 								id="username"
 								type="text"
 								name="username"
-								placeholder="maya-chen"
+								placeholder="Tenet_01"
 								value={formData.username}
 								onChange={(e) => onChange(e, "input")}
-								minLength={2}
+								minLength={5}
+								maxLength={32}
+								pattern="[A-Za-z0-9_]{5,32}"
 								required
+							/>
+						</div>
+
+						<div>
+							<label className="mb-2 block text-sm font-medium text-[#171717]" htmlFor="nickname">
+								Nickname
+							</label>
+							<input
+								className={inputClass}
+								id="nickname"
+								type="text"
+								name="nickname"
+								placeholder="Flanderzz"
+								value={formData.nickname}
+								onChange={(e) => onChange(e, "input")}
 							/>
 						</div>
 

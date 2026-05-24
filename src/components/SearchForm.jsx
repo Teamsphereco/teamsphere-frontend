@@ -4,11 +4,9 @@ import useSearch from "../hooks/useSearch";
 import useSearchResults from "../zustand/useSearch";
 import useCreateChat from "../hooks/useCreateChat";
 import useProfile from "../zustand/useProfile";
-import CreateGroupChatFlow from "./Group/CreateGroupChatFlow";
 
 const SearchForm = () => {
 	const [searchQuery, setSearchQuery] = useState("");
-	const [groupFlowOpen, setGroupFlowOpen] = useState(false);
 	const inputRef = useRef(null);
 	const { searchResults, setSearchResults } = useSearchResults();
 	const { search } = useSearch();
@@ -48,13 +46,6 @@ const SearchForm = () => {
 				<p className="font-mono text-[11px] uppercase text-[#888888]">
 					New direct message
 				</p>
-				<button
-					type="button"
-					onClick={() => setGroupFlowOpen(true)}
-					className="rounded-md border border-[#ebebeb] bg-white px-3 py-1.5 text-[11px] font-medium text-[#171717] transition hover:border-[#a1a1a1]"
-				>
-					New group
-				</button>
 			</div>
 
 			<div className="relative">
@@ -82,11 +73,6 @@ const SearchForm = () => {
 					))}
 				</div>
 			) : null}
-
-			<CreateGroupChatFlow
-				open={groupFlowOpen}
-				onClose={() => setGroupFlowOpen(false)}
-			/>
 		</div>
 	);
 };
@@ -98,7 +84,7 @@ function UserCard({ user, onCreated }) {
 
 	const handleDirectChatClick = async () => {
 		await handleCreateChat(user.id, {
-			username: user.username,
+			username: user.nickname || user.username,
 			profileImageUrl: user.profilePicture,
 		});
 		onCreated();
@@ -115,8 +101,8 @@ function UserCard({ user, onCreated }) {
 					</div>
 				)}
 				<div>
-					<p className="text-sm font-semibold text-[#171717]">{user.username}</p>
-					<p className="text-xs text-[#888888]">{user.email}</p>
+					<p className="text-sm font-semibold text-[#171717]">{user.nickname || user.username}</p>
+					<p className="text-xs text-[#888888]">@{user.username}</p>
 				</div>
 			</div>
 			<button

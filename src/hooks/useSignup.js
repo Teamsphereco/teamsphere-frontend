@@ -8,13 +8,13 @@ const useSignup = () => {
 	const [loading, setLoading] = useState(false);
 	const { setAuthUser } = useAuthContext();
 
-	const signup = async ({ email, password, username, file}) => {
+	const signup = async ({ email, password, username, nickname, file}) => {
 		const success = handleInputErrors({email, password, username, file});
 		if (!success) return;
 
 		setLoading(true);
 		try {
-			const formData = { email, password, username, file };
+			const formData = { email, password, username, nickname, file };
 			const authData = new FormData();
 			Object.keys(formData).forEach(key => {
 				authData.append(key, formData[key]);
@@ -55,6 +55,11 @@ function handleInputErrors({ email, password, username, file }) {
 
 	if (password.length < 6) {
 		toast.error("Password must be at least 6 characters");
+		return false;
+	}
+
+	if (!/^[A-Za-z0-9_]{5,32}$/.test(username)) {
+		toast.error("Handle must be 5-32 characters using letters, numbers, or underscores");
 		return false;
 	}
 

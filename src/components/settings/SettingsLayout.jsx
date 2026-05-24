@@ -15,11 +15,11 @@ const SettingsLayout = ({
   profileSummary,
   children,
 }) => (
-  <div className="min-h-dvh bg-[#fafafa] text-[#171717]">
-    <div className="flex min-h-dvh w-full flex-col md:flex-row">
+  <div className="h-dvh overflow-hidden bg-[#fafafa] text-[#171717]">
+    <div className="flex h-full w-full flex-col md:flex-row">
       <NavigationMenu />
 
-      <div className="flex min-h-dvh flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex h-14 items-center justify-between border-b border-[#ebebeb] bg-white px-4 md:hidden">
           <Link
             to="/chat"
@@ -31,17 +31,17 @@ const SettingsLayout = ({
           <p className="font-mono text-[11px] text-[#888888]">TEAMSPHERE SETTINGS</p>
         </div>
 
-        <div className="mx-auto flex w-full max-w-[1560px] flex-1 flex-col gap-4 px-3 py-4 sm:px-5 lg:px-6">
-          <SettingsHeader searchQuery={searchQuery} onSearchChange={onSearchChange} profileSummary={profileSummary} />
+        <div className="mx-auto flex min-h-0 w-full max-w-[1560px] flex-1 flex-col gap-4 px-3 py-4 sm:px-5 lg:px-6">
+          <SettingsHeader searchQuery={searchQuery} onSearchChange={onSearchChange} />
 
-          <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,850px)_320px]">
-            <aside className={`${showMobileDetail ? "hidden" : "block"} lg:block`}>
-              <div className="sticky top-4 rounded-lg border border-[#ebebeb] bg-[#fafafa] p-2 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,850px)_320px]">
+            <aside className={`${showMobileDetail ? "hidden" : "block"} min-h-0 overflow-y-auto lg:block`}>
+              <div className="rounded-lg border border-[#ebebeb] bg-[#fafafa] p-2">
                 <SettingsSidebar activeCategory={activeCategory} onSelectCategory={onSelectCategory} mobile={!showMobileDetail} />
               </div>
             </aside>
 
-            <main className={`${showMobileDetail ? "block" : "hidden"} min-w-0 lg:block`}>
+            <main className={`${showMobileDetail ? "block" : "hidden"} min-h-0 min-w-0 overflow-y-auto pr-1 lg:block`}>
               <button
                 type="button"
                 onClick={onBackToCategories}

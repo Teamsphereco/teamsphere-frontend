@@ -22,9 +22,9 @@ export default function Login() {
   };
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#fafafa] px-4 py-8 font-['Inter',system-ui,-apple-system,sans-serif] text-[#171717] selection:bg-[#171717] selection:text-[#f2f2f2] sm:px-6 lg:px-8">
+    <section className="relative h-dvh overflow-y-auto bg-[#fafafa] px-4 py-8 font-['Inter',system-ui,-apple-system,sans-serif] text-[#171717] selection:bg-[#171717] selection:text-[#f2f2f2] sm:px-6 lg:px-8">
       <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_25%_42%,#50e3c2_0%,transparent_24%),radial-gradient(circle_at_45%_34%,#007cf0_0%,transparent_25%),radial-gradient(circle_at_64%_46%,#7928ca_0%,transparent_24%),radial-gradient(circle_at_78%_58%,#ff0080_0%,transparent_22%),radial-gradient(circle_at_58%_72%,#f9cb28_0%,transparent_20%)] opacity-20 blur-3xl" />
-      <div className="relative mx-auto grid min-h-[calc(100vh-64px)] w-full max-w-[1180px] items-center gap-8 py-12 lg:grid-cols-[0.95fr_1.05fr]">
+      <div className="relative mx-auto grid min-h-[calc(100dvh-64px)] w-full max-w-[1180px] items-center gap-8 py-8 lg:grid-cols-[0.95fr_1.05fr] lg:py-12">
         <div className="hidden lg:block">
           <Link to="/" className="font-mono text-xs text-[#888888] transition hover:text-[#171717]">TEAMSPHERE</Link>
           <h1 className="mt-5 max-w-xl text-[48px] font-semibold leading-[48px] tracking-[-2.4px] text-[#171717]">
