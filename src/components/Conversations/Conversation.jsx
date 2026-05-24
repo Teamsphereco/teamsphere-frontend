@@ -62,6 +62,7 @@ const Conversation = ({ conversation }) => {
 	const parsedMemberCount = Number(rawMemberCount);
 	const hasMemberCount = Number.isFinite(parsedMemberCount) && parsedMemberCount > 0;
 	const groupMemberCountLabel = hasMemberCount ? String(parsedMemberCount) : "—";
+	const isIncomingRequest = Boolean(conversation?.requestIncoming);
 	
 	const handleClick = () => {
 		setSelectedConversation({
@@ -117,11 +118,15 @@ const Conversation = ({ conversation }) => {
 						<span className={`shrink-0 text-xs ${isSelected ? "text-white/60" : "text-[#888888]"}`}>{formattedTime}</span>
 					</div>
 				<p className={`truncate text-xs ${isSelected ? "text-white/70" : previewClass.replace("text-slate-300/90", "text-[#4d4d4d]").replace("text-indigo-300", "text-[#0070f3]")}`}>
-					{messagePreview}
+					{isIncomingRequest ? "Wants to start a chat" : messagePreview}
 				</p>
 			</div>
 
-			{unreadCount > 0 && !isSelected ? (
+			{isIncomingRequest && !isSelected ? (
+				<div className="ml-1 rounded-full bg-[#fff8ea] px-2 py-1 text-[10px] font-semibold uppercase text-[#8a5a00]">
+					Request
+				</div>
+			) : unreadCount > 0 && !isSelected ? (
 				<div className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#0070f3] px-1.5 text-[11px] font-semibold text-white">
 					{unreadCount > 99 ? "99+" : unreadCount}
 				</div>

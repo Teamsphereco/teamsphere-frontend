@@ -14,6 +14,7 @@ export default function Signup() {
         email: "",
         password: "",
         username: "",
+        nickname: "",
         file: undefined,
     });
 

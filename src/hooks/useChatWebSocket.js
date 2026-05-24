@@ -54,6 +54,7 @@ const useChatWebSocket = () => {
 		setTypingState,
 		upsertConversation,
 		removeConversation,
+		addCallTimelineEvent,
 		setWebsocketConnected,
 		setSendWebsocketMessage,
 		setSendWebsocketTyping,
@@ -385,6 +386,20 @@ const useChatWebSocket = () => {
 				const parsedPayload = JSON.parse(frame.body);
 
 				if (parsedPayload?.type?.startsWith("CALL_")) {
+					if (parsedPayload?.type === "CALL_RINGING") {
+						addCallTimelineEvent({
+							...parsedPayload,
+							eventKind: "started",
+							timeStamp: parsedPayload.startedAt,
+						});
+					}
+					if (parsedPayload?.type === "CALL_ENDED" || (parsedPayload?.type === "CALL_DECLINED" && parsedPayload?.callState === "ENDED")) {
+						addCallTimelineEvent({
+							...parsedPayload,
+							eventKind: "ended",
+							timeStamp: parsedPayload.endedAt || parsedPayload.startedAt,
+						});
+					}
 					applyCallEvent(parsedPayload, currentUserId);
 					return;
 				}
@@ -394,14 +409,18 @@ const useChatWebSocket = () => {
 					return;
 				}
 
-				if (parsedPayload?.type === "chat.created" || parsedPayload?.type === "chat.updated") {
+				if (
+					parsedPayload?.type === "chat.created" ||
+					parsedPayload?.type === "chat.updated" ||
+					parsedPayload?.type === "chat.request.accepted"
+				) {
 					if (parsedPayload?.chatId) {
 						void fetchConversationSummary(parsedPayload.chatId);
 					}
 					return;
 				}
 
-				if (parsedPayload?.type === "chat.removed") {
+				if (parsedPayload?.type === "chat.removed" || parsedPayload?.type === "chat.request.declined") {
 					if (parsedPayload?.chatId) {
 						removeConversation(parsedPayload.chatId);
 					}
@@ -414,7 +433,7 @@ const useChatWebSocket = () => {
 				console.error("Failed to parse websocket frame", error);
 			}
 		},
-		[applyCallEvent, currentUserId, fetchConversationSummary, handleTypingEvent, processIncomingMessage, removeConversation]
+		[addCallTimelineEvent, applyCallEvent, currentUserId, fetchConversationSummary, handleTypingEvent, processIncomingMessage, removeConversation]
 	);
 
 	const syncChatSubscriptions = useCallback(() => {

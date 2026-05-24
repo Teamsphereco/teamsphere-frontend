@@ -13,7 +13,7 @@ const useSearch = () => {
     if (!token) return;
     setLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_HOST}/api/user/search?name=${query}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_HOST}/api/user/search?name=${encodeURIComponent(query)}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

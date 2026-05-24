@@ -119,6 +119,7 @@ const useConversation = create((set) => ({
 			typingUsersByChat: {},
 			selfTypingByChat: {},
 			draftByChat: {},
+			callEventsByChat: {},
 		}),
 	replaceConversations: (conversations) =>
 		set((state) => ({
@@ -146,18 +147,23 @@ const useConversation = create((set) => ({
 	upsertConversation: (conversation, { moveToTop = false } = {}) =>
 		set((state) => {
 			const merged = mergeConversationList(state.conversations, [conversation], false);
+			const id = getConversationId(conversation);
+			const selectedConversation =
+				state.selectedConversation && getConversationId(state.selectedConversation) === id
+					? mergeConversation(state.selectedConversation, { ...conversation, id, chatId: id })
+					: state.selectedConversation;
 			if (!moveToTop) {
-				return { conversations: merged };
+				return { conversations: merged, selectedConversation };
 			}
 
-			const id = getConversationId(conversation);
 			const target = merged.find((entry) => getConversationId(entry) === id);
 			if (!target) {
-				return { conversations: merged };
+				return { conversations: merged, selectedConversation };
 			}
 
 			return {
 				conversations: [target, ...merged.filter((entry) => getConversationId(entry) !== id)],
+				selectedConversation,
 			};
 		}),
 	updateConversationFromMessage: (message, currentUserId) =>
@@ -278,6 +284,28 @@ const useConversation = create((set) => ({
 			if (!(chatKey in state.draftByChat)) return {};
 			const { [chatKey]: _removed, ...rest } = state.draftByChat;
 			return { draftByChat: rest };
+		}),
+	callEventsByChat: {},
+	addCallTimelineEvent: (event) =>
+		set((state) => {
+			const chatId = event?.chatId;
+			const callId = event?.callId || event?.id;
+			const eventKind = event?.eventKind;
+			if (!chatId || !callId || !eventKind) return {};
+
+			const chatKey = String(chatId);
+			const eventId = `${callId}:${eventKind}`;
+			const currentEvents = state.callEventsByChat[chatKey] || [];
+			if (currentEvents.some((item) => item.id === eventId)) {
+				return {};
+			}
+
+			return {
+				callEventsByChat: {
+					...state.callEventsByChat,
+					[chatKey]: [...currentEvents, { ...event, id: eventId }],
+				},
+			};
 		}),
 	websocketConnected: false,
 	setWebsocketConnected: (websocketConnected) => set({ websocketConnected }),

@@ -119,6 +119,23 @@ const CallControls = ({ conversation }) => {
 	const connected = roomStatus === "connected";
 
 	useEffect(() => {
+		if (!chatId || activeCall || actionLoading) return;
+		const rawPendingCall = sessionStorage.getItem("teamsphere-pending-call");
+		if (!rawPendingCall) return;
+
+		try {
+			const pendingCall = JSON.parse(rawPendingCall);
+			if (String(pendingCall?.chatId) !== String(chatId) || !pendingCall?.callType) {
+				return;
+			}
+			sessionStorage.removeItem("teamsphere-pending-call");
+			void startCall({ chatId, callType: pendingCall.callType });
+		} catch {
+			sessionStorage.removeItem("teamsphere-pending-call");
+		}
+	}, [activeCall, actionLoading, chatId, startCall]);
+
+	useEffect(() => {
 		if (!settingsOpen) return undefined;
 
 		const handlePointerDown = (event) => {

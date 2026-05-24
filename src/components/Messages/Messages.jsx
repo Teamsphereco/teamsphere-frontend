@@ -11,6 +11,7 @@ const Messages = ({
 	hasOlderMessages,
 	loadOlderMessages,
 	selectedChatId,
+	callEvents = [],
 }) => {
 	const listRef = useRef(null);
 	const restoreHeightRef = useRef(null);
@@ -42,7 +43,7 @@ const Messages = ({
 				listRef.current.scrollTop = listRef.current.scrollHeight;
 			});
 		}
-	}, [messages]);
+	}, [messages, callEvents]);
 
 	const handleScroll = async () => {
 		if (!listRef.current) return;
@@ -66,21 +67,38 @@ const Messages = ({
 	const messageRows = [];
 	let previousDayKey = null;
 
-	for (const message of messages) {
-		const dayKey = getDayKey(message?.timeStamp);
+	const timelineItems = [
+		...(Array.isArray(messages) ? messages : []).map((message) => ({ type: "message", timeStamp: message?.timeStamp, message })),
+		...(Array.isArray(callEvents) ? callEvents : []).map((callEvent) => ({ type: "call", timeStamp: callEvent?.timeStamp, callEvent })),
+	].sort((a, b) => {
+		const timeA = Date.parse(a.timeStamp || "");
+		const timeB = Date.parse(b.timeStamp || "");
+		return (Number.isNaN(timeA) ? 0 : timeA) - (Number.isNaN(timeB) ? 0 : timeB);
+	});
+
+	for (const item of timelineItems) {
+		const dayKey = getDayKey(item?.timeStamp);
 		if (dayKey !== previousDayKey) {
 			previousDayKey = dayKey;
 			messageRows.push({
 				type: "divider",
 				id: `divider-${dayKey}`,
-				label: formatDateDivider(message?.timeStamp),
+				label: formatDateDivider(item?.timeStamp),
 			});
 		}
-		messageRows.push({
-			type: "message",
-			id: message.id,
-			message,
-		});
+		if (item.type === "call") {
+			messageRows.push({
+				type: "call",
+				id: item.callEvent.id,
+				callEvent: item.callEvent,
+			});
+		} else {
+			messageRows.push({
+				type: "message",
+				id: item.message.id,
+				message: item.message,
+			});
+		}
 	}
 
 	return (
@@ -104,6 +122,8 @@ const Messages = ({
 							</span>
 							<div className='h-px flex-1 bg-[#ebebeb]' />
 						</div>
+					) : row.type === "call" ? (
+						<CallTimelineRow key={row.id} callEvent={row.callEvent} />
 					) : (
 						<div key={row.id} data-testid={`message-${row.id}`} className='mb-3'>
 							<Message messageData={row.message} />
@@ -111,7 +131,7 @@ const Messages = ({
 					)
 				)}
 
-			{!loading && messages.length === 0 && (
+			{!loading && messages.length === 0 && callEvents.length === 0 && (
 				<p className='mt-10 text-center text-sm text-[#888888]'>
 					Send a message to start the conversation.
 				</p>
@@ -121,6 +141,35 @@ const Messages = ({
 			)}
 		</div>
 	);
+};
+
+const CallTimelineRow = ({ callEvent }) => {
+	const isEnded = callEvent?.eventKind === "ended";
+	const callType = callEvent?.callType === "VIDEO" ? "Video" : "Audio";
+	const time = formatCallTime(callEvent?.timeStamp);
+
+	return (
+		<div className="mb-4 mt-2 flex justify-center">
+			<div className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-[0_1px_1px_rgba(0,0,0,0.03)] ${
+				isEnded
+					? "border-[#ebebeb] bg-white text-[#4d4d4d]"
+					: "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]"
+			}`}>
+				<span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px]">
+					{isEnded ? "✓" : "↗"}
+				</span>
+				<span>{callType} call {isEnded ? "ended" : "started"}</span>
+				{time ? <span className="text-[#888888]">{time}</span> : null}
+			</div>
+		</div>
+	);
+};
+
+const formatCallTime = (timeStamp) => {
+	if (!timeStamp) return "";
+	const parsed = new Date(timeStamp);
+	if (Number.isNaN(parsed.getTime())) return "";
+	return parsed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 };
 
 export default Messages;

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { useAuthContext } from "../../context/AuthContext";
 import useSettings from "../../zustand/useSettings";
+import { getBlockedUsers, unblockUser as unblockUserRequest } from "../../utils/socialApi";
 import {
   integrations,
   selectOptions,
@@ -50,11 +52,11 @@ const makeDeviceOptions = (devices, kind, defaultLabel) => {
 
 const SettingsSection = ({ categoryId, profileSummary }) => {
   const content = settingsContent[categoryId];
+  const { authUser } = useAuthContext();
+  const token = authUser?.jwt;
   const {
     settings,
     updateSetting,
-    blockedUsers,
-    unblockUser,
     linkedDevices,
     removeLinkedDevice,
     removeOtherDevices,
@@ -64,7 +66,29 @@ const SettingsSection = ({ categoryId, profileSummary }) => {
   } = useSettings();
   const [dialog, setDialog] = useState(null);
   const [blockedSearch, setBlockedSearch] = useState("");
+  const [blockedUsers, setBlockedUsers] = useState([]);
+  const [blockedUsersLoading, setBlockedUsersLoading] = useState(false);
   const [mediaDevices, setMediaDevices] = useState([]);
+
+  const fetchBlockedUsers = useMemo(() => async () => {
+    if (!token) return;
+    setBlockedUsersLoading(true);
+    try {
+      const payload = await getBlockedUsers({ token });
+      setBlockedUsers(Array.isArray(payload) ? payload : []);
+    } catch (error) {
+      toast.error(error.message);
+      setBlockedUsers([]);
+    } finally {
+      setBlockedUsersLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (categoryId === "blocked-users") {
+      void fetchBlockedUsers();
+    }
+  }, [categoryId, fetchBlockedUsers]);
 
   useEffect(() => {
     if (!navigator.mediaDevices?.enumerateDevices) {
@@ -148,8 +172,16 @@ const SettingsSection = ({ categoryId, profileSummary }) => {
     }
 
     if (action === "unblock-user") {
-      unblockUser(item.id);
-      toast.success(`${item.name} was unblocked locally.`);
+      openConfirmation({
+        title: `Unblock ${item.nickname || item.username}?`,
+        description: "They may be able to send chat requests or appear with limited interaction in shared groups again.",
+        confirmLabel: "Unblock",
+        onConfirm: async () => {
+          await unblockUserRequest({ token, userId: item.id });
+          await fetchBlockedUsers();
+          toast.success(`${item.nickname || item.username} was unblocked.`);
+        },
+      });
       return;
     }
 
@@ -177,19 +209,13 @@ const SettingsSection = ({ categoryId, profileSummary }) => {
   };
 
   const closeDialog = () => setDialog(null);
-  const confirmDialog = () => {
-    dialog?.onConfirm?.();
+  const confirmDialog = async () => {
+    await dialog?.onConfirm?.();
     closeDialog();
   };
 
   return (
     <div className="space-y-4">
-      <section className="sticky top-0 z-10 rounded-lg border border-[#ebebeb] bg-white/95 p-4 shadow-[0_1px_1px_rgba(0,0,0,0.03),0_8px_16px_-12px_rgba(0,0,0,0.08)] backdrop-blur sm:p-5 lg:top-4">
-        <p className="font-mono text-[11px] text-[#888888]">SETTINGS CATEGORY</p>
-        <h2 className="mt-2 text-2xl font-semibold tracking-normal text-[#171717]">{content.title}</h2>
-        <p className="mt-2 text-sm leading-6 text-[#4d4d4d]">{content.description}</p>
-      </section>
-
       {categoryId === "profile" ? <ProfileHero profileSummary={profileSummary} settings={settings} onAction={handleAction} /> : null}
       {categoryId === "devices-sessions" ? <DevicesSessions linkedDevices={linkedDevices} onAction={handleAction} /> : null}
       {categoryId === "notifications" ? <NotificationPreview settings={settings} /> : null}
@@ -207,6 +233,7 @@ const SettingsSection = ({ categoryId, profileSummary }) => {
       {categoryId === "blocked-users" ? (
         <BlockedUsers
           blockedUsers={blockedUsers}
+          loading={blockedUsersLoading}
           searchQuery={blockedSearch}
           onSearchChange={setBlockedSearch}
           onAction={handleAction}
@@ -250,7 +277,7 @@ const SettingsSection = ({ categoryId, profileSummary }) => {
 };
 
 const ProfileHero = ({ profileSummary, settings, onAction }) => (
-  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+  <div>
     <section className="rounded-lg border border-[#ebebeb] bg-white p-5 shadow-[0_1px_1px_rgba(0,0,0,0.03),0_8px_16px_-12px_rgba(0,0,0,0.08)]">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         {profileSummary.avatarUrl ? (
@@ -271,25 +298,6 @@ const ProfileHero = ({ profileSummary, settings, onAction }) => (
         <div className="flex flex-wrap gap-2">
           <ActionButton variant="primary" onClick={() => onAction("edit-profile", { title: "Edit profile" })}>Edit profile</ActionButton>
           <ActionButton onClick={() => onAction("change-avatar", { title: "Change avatar" })}>Change avatar</ActionButton>
-        </div>
-      </div>
-    </section>
-
-    <section className="rounded-lg border border-[#ebebeb] bg-white p-4 shadow-[0_1px_1px_rgba(0,0,0,0.03),0_8px_16px_-12px_rgba(0,0,0,0.08)]">
-      <p className="font-mono text-[11px] text-[#888888]">HOW OTHERS SEE YOU</p>
-      <div className="mt-4 rounded-lg border border-[#ebebeb] bg-[#fafafa] p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#171717] text-sm font-semibold text-white">
-            {profileSummary.initials}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[#171717]">{profileSummary.name}</p>
-            <p className="truncate text-xs text-[#4d4d4d]">{settings.customStatus}</p>
-          </div>
-        </div>
-        <div className="mt-4 flex items-center justify-between rounded-md bg-white px-3 py-2 text-xs text-[#4d4d4d]">
-          <span>Presence</span>
-          <span className="font-medium text-[#0761d1]">{statusLabels[settings.status]}</span>
         </div>
       </div>
     </section>
@@ -479,9 +487,9 @@ const PrivacyCheckup = ({ settings, onAction }) => {
   );
 };
 
-const BlockedUsers = ({ blockedUsers, searchQuery, onSearchChange, onAction }) => {
+const BlockedUsers = ({ blockedUsers, loading, searchQuery, onSearchChange, onAction }) => {
   const filteredUsers = blockedUsers.filter((user) => (
-    `${user.name} ${user.handle}`.toLowerCase().includes(searchQuery.toLowerCase())
+    `${user.nickname || ""} ${user.username || ""}`.toLowerCase().includes(searchQuery.toLowerCase())
   ));
 
   return (
@@ -501,14 +509,22 @@ const BlockedUsers = ({ blockedUsers, searchQuery, onSearchChange, onAction }) =
         </p>
       </div>
 
-      {filteredUsers.length ? (
+      {loading ? (
+        <div className="rounded-lg border border-[#ebebeb] bg-white p-4 text-sm text-[#4d4d4d]">Loading blocked users...</div>
+      ) : filteredUsers.length ? (
         <div className="overflow-hidden rounded-lg border border-[#ebebeb] bg-white shadow-[0_1px_1px_rgba(0,0,0,0.03),0_8px_16px_-12px_rgba(0,0,0,0.08)]">
           {filteredUsers.map((user) => (
             <div key={user.id} className="flex min-h-[76px] items-center gap-3 border-b border-[#ebebeb] px-4 py-3 last:border-b-0">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#171717] text-xs font-semibold text-white">{user.avatar}</div>
+              {user.profilePicture ? (
+                <img src={user.profilePicture} alt={`${user.nickname || user.username} avatar`} className="h-10 w-10 rounded-md object-cover" />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#171717] text-xs font-semibold text-white">
+                  {(user.nickname || user.username || "U").slice(0, 2).toUpperCase()}
+                </div>
+              )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-[#171717]">{user.name}</p>
-                <p className="truncate text-xs text-[#4d4d4d]">{user.handle} · {user.blockedDate}</p>
+                <p className="truncate text-sm font-semibold text-[#171717]">{user.nickname || user.username}</p>
+                <p className="truncate text-xs text-[#4d4d4d]">@{user.username}</p>
               </div>
               <ActionButton onClick={() => onAction("unblock-user", user)}>Unblock</ActionButton>
             </div>

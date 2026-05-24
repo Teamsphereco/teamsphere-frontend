@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuthContext } from "../../context/AuthContext";
 import useChatSettings from "../../hooks/useChatSettings";
+import { getFriends, getOutgoingFriendRequests, sendFriendRequest } from "../../utils/socialApi";
 
 const defaultInfoDraft = {
 	chatName: "",
@@ -50,7 +51,76 @@ const ConfirmDialog = ({ open, title, description, confirmLabel, confirmClassNam
 	);
 };
 
-const ChatSettingsPanel = ({ conversation }) => {
+const getInitial = (value) => (value || "C").charAt(0).toUpperCase();
+
+const ChatProfileCard = ({
+	conversation,
+	settings,
+	directMember,
+	isDirectFriend,
+	directFriendRequestPending,
+	directBlocked,
+	friendActionLoading,
+	onAddFriend,
+}) => {
+	const isGroup = Boolean(settings?.isGroup || conversation?.isGroup);
+	const title = isGroup
+		? settings?.chatName || conversation?.chatName || "Group chat"
+		: directMember?.nickname || directMember?.username || conversation?.chatName || "Direct chat";
+	const subtitle = isGroup
+		? `${settings?.memberCount || (settings?.members || []).length || conversation?.memberCount || 0} members`
+		: directMember?.username ? `@${directMember.username}` : "Direct chat";
+	const image = isGroup
+		? settings?.chatImage || conversation?.chatImage
+		: directMember?.profilePicture || conversation?.chatImage;
+
+	return (
+		<div className="rounded-lg border border-[#ebebeb] bg-white p-4 shadow-[0_1px_1px_rgba(0,0,0,0.03)]">
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+				<div className="flex min-w-0 items-center gap-3">
+					{image ? (
+						<img src={image} alt={`${title} avatar`} className="h-16 w-16 rounded-lg object-cover" />
+					) : (
+						<div className="flex h-16 w-16 items-center justify-center rounded-lg bg-[#171717] text-2xl font-semibold text-white">
+							{getInitial(title)}
+						</div>
+					)}
+					<div className="min-w-0">
+						<p className="truncate text-lg font-semibold text-[#171717]">{title}</p>
+						<p className="mt-1 truncate text-sm text-[#4d4d4d]">{subtitle}</p>
+						<div className="mt-2 flex flex-wrap gap-2">
+							<span className="rounded-md border border-[#ebebeb] bg-[#fafafa] px-2 py-1 text-xs font-medium text-[#4d4d4d]">
+								{isGroup ? "Group chat" : "Direct chat"}
+							</span>
+							{isGroup && settings?.currentUserAdmin ? (
+								<span className="rounded-md border border-[#bfdbfe] bg-[#eff6ff] px-2 py-1 text-xs font-medium text-[#1d4ed8]">
+									Admin
+								</span>
+							) : null}
+							{!isGroup && isDirectFriend ? (
+								<span className="rounded-md border border-[#d1fae5] bg-[#ecfdf5] px-2 py-1 text-xs font-medium text-[#047857]">
+									Friend
+								</span>
+							) : null}
+						</div>
+					</div>
+				</div>
+				{!isGroup && !directBlocked && !isDirectFriend ? (
+					<button
+						type="button"
+						onClick={onAddFriend}
+						disabled={friendActionLoading || directFriendRequestPending}
+						className="inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-[#bfdbfe] bg-[#eff6ff] px-3 text-sm font-medium text-[#1d4ed8] transition hover:border-[#93c5fd] disabled:cursor-not-allowed disabled:opacity-60"
+					>
+						{directFriendRequestPending ? "Friend request sent" : "Add friend"}
+					</button>
+				) : null}
+			</div>
+		</div>
+	);
+};
+
+const ChatSettingsPanel = ({ conversation, onBack }) => {
 	const chatId = conversation?.chatId || conversation?.id;
 	const { authUser } = useAuthContext();
 	const token = authUser?.jwt;
@@ -70,6 +140,9 @@ const ChatSettingsPanel = ({ conversation }) => {
 	} = useChatSettings();
 
 	const [settings, setSettings] = useState(null);
+	const [friends, setFriends] = useState([]);
+	const [outgoingFriendRequests, setOutgoingFriendRequests] = useState([]);
+	const [friendActionLoading, setFriendActionLoading] = useState(false);
 	const [memberQuery, setMemberQuery] = useState("");
 	const [memberSearchResults, setMemberSearchResults] = useState([]);
 	const [loadingMembers, setLoadingMembers] = useState(false);
@@ -110,6 +183,32 @@ const ChatSettingsPanel = ({ conversation }) => {
 		});
 	}, [conversation?.chatImage, conversation?.chatName, settings]);
 
+	useEffect(() => {
+		if (!settings || !token) return undefined;
+		let cancelled = false;
+		const loadSocialState = async () => {
+			try {
+				const [friendsPayload, outgoingPayload] = await Promise.all([
+					getFriends({ token }),
+					getOutgoingFriendRequests({ token }),
+				]);
+				if (!cancelled) {
+					setFriends(Array.isArray(friendsPayload) ? friendsPayload : []);
+					setOutgoingFriendRequests(Array.isArray(outgoingPayload) ? outgoingPayload : []);
+				}
+			} catch {
+				if (!cancelled) {
+					setFriends([]);
+					setOutgoingFriendRequests([]);
+				}
+			}
+		};
+		void loadSocialState();
+		return () => {
+			cancelled = true;
+		};
+	}, [settings, token]);
+
 	const existingMemberIds = useMemo(
 		() => new Set((settings?.members || []).map((member) => String(member.userId))),
 		[settings?.members]
@@ -120,8 +219,22 @@ const ChatSettingsPanel = ({ conversation }) => {
 		[settings?.members]
 	);
 
+	const directMember = useMemo(
+		() => (settings?.members || []).find((member) => String(member.userId) !== String(currentUserId)),
+		[currentUserId, settings?.members]
+	);
+	const isDirectFriend = useMemo(
+		() => !!directMember && friends.some((friend) => String(friend.id) === String(directMember.userId)),
+		[directMember, friends]
+	);
+	const directFriendRequestPending = useMemo(
+		() => !!directMember && outgoingFriendRequests.some((request) => String(request.addressee?.id) === String(directMember.userId)),
+		[directMember, outgoingFriendRequests]
+	);
+	const directBlocked = Boolean(settings?.blocked || settings?.blockedByCurrentUser || settings?.blocksCurrentUser);
+
 	useEffect(() => {
-		if (!settings?.isGroup || !settings?.currentUserAdmin) {
+		if (!settings?.isGroup) {
 			setMemberSearchResults([]);
 			return;
 		}
@@ -131,37 +244,20 @@ const ChatSettingsPanel = ({ conversation }) => {
 			return;
 		}
 
-		const timeoutId = setTimeout(async () => {
+		const timeoutId = setTimeout(() => {
 			setLoadingMembers(true);
-			try {
-				const response = await fetch(
-					`${import.meta.env.VITE_API_HOST}/api/user/search?name=${encodeURIComponent(memberQuery.trim())}`,
-					{
-						method: "GET",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
-						},
-					}
-				);
-				if (!response.ok) {
-					throw new Error("Failed to search users");
-				}
-				const users = await response.json();
-				setMemberSearchResults(
-					(Array.isArray(users) ? users : []).filter(
-						(user) => !existingMemberIds.has(String(user.id))
-					)
-				);
-			} catch (error) {
-				toast.error(error.message);
-			} finally {
-				setLoadingMembers(false);
-			}
+			const query = memberQuery.trim().toLowerCase();
+			setMemberSearchResults(
+				friends.filter((user) => {
+					if (existingMemberIds.has(String(user.id))) return false;
+					return `${user.username || ""} ${user.nickname || ""}`.toLowerCase().includes(query);
+				})
+			);
+			setLoadingMembers(false);
 		}, 260);
 
 		return () => clearTimeout(timeoutId);
-	}, [existingMemberIds, memberQuery, settings?.currentUserAdmin, settings?.isGroup, token]);
+	}, [existingMemberIds, friends, memberQuery, settings?.isGroup, token]);
 
 	const handleToggleMute = async () => {
 		if (!chatId || !settings) return;
@@ -178,6 +274,21 @@ const ChatSettingsPanel = ({ conversation }) => {
 		const success = await blockChat(chatId, nextBlocked);
 		if (success) {
 			setSettings((current) => (current ? { ...current, blocked: nextBlocked } : current));
+		}
+	};
+
+	const handleAddFriend = async () => {
+		if (!token || !directMember?.userId || directBlocked || isDirectFriend || directFriendRequestPending) return;
+		setFriendActionLoading(true);
+		try {
+			await sendFriendRequest({ token, userId: directMember.userId });
+			toast.success("Friend request sent");
+			const outgoingPayload = await getOutgoingFriendRequests({ token });
+			setOutgoingFriendRequests(Array.isArray(outgoingPayload) ? outgoingPayload : []);
+		} catch (error) {
+			toast.error(error.message);
+		} finally {
+			setFriendActionLoading(false);
 		}
 	};
 
@@ -259,31 +370,31 @@ const ChatSettingsPanel = ({ conversation }) => {
 	return (
 		<>
 			<div className="scrollbar-thin h-full space-y-4 overflow-y-auto px-4 py-4 md:px-5">
-				<div className="rounded-lg border border-[#ebebeb] bg-white p-4 shadow-[0_1px_1px_rgba(0,0,0,0.03)]">
-					<div className="flex items-center gap-3">
-						{(settings?.chatImage || conversation?.chatImage) ? (
-							<img
-								src={settings?.chatImage || conversation?.chatImage}
-								alt="chat avatar"
-								className="h-14 w-14 rounded-md object-cover"
-							/>
-						) : (
-							<div className="flex h-14 w-14 items-center justify-center rounded-md bg-[#f5f5f5] text-lg font-semibold text-[#171717]">
-								{(settings?.chatName || conversation?.chatName || "C").charAt(0).toUpperCase()}
-							</div>
-						)}
-						<div className="min-w-0">
-							<p className="truncate text-base font-semibold text-[#171717]">
-								{settings?.chatName || conversation?.chatName || "Chat"}
-							</p>
-							<p className="text-xs text-[#888888]">
-								{settings?.isGroup
-									? `${settings?.memberCount || (settings?.members || []).length || 0} members`
-									: "Direct chat"}
-							</p>
-						</div>
+				{onBack ? (
+					<div className="sticky top-0 z-20 -mx-4 -mt-4 border-b border-[#ebebeb] bg-[#fafafa]/95 px-4 py-3 backdrop-blur md:hidden">
+						<button
+							type="button"
+							onClick={onBack}
+							className="inline-flex h-9 items-center gap-2 rounded-md border border-[#ebebeb] bg-white px-3 text-sm font-medium text-[#171717]"
+						>
+							<svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+								<path d="m15 6-6 6 6 6" />
+							</svg>
+							Chat
+						</button>
 					</div>
-				</div>
+				) : null}
+
+				<ChatProfileCard
+					conversation={conversation}
+					settings={settings}
+					directMember={directMember}
+					isDirectFriend={isDirectFriend}
+					directFriendRequestPending={directFriendRequestPending}
+					directBlocked={directBlocked}
+					friendActionLoading={friendActionLoading}
+					onAddFriend={handleAddFriend}
+				/>
 
 				<div className="rounded-lg border border-[#ebebeb] bg-white p-4 shadow-[0_1px_1px_rgba(0,0,0,0.03)]">
 					<p className="mb-3 font-mono text-[11px] uppercase text-[#888888]">Quick Actions</p>
@@ -297,14 +408,26 @@ const ChatSettingsPanel = ({ conversation }) => {
 							{settings?.muted ? "Unmute chat" : "Mute chat"}
 						</button>
 						{!settings?.isGroup ? (
-							<button
-								type="button"
-								onClick={handleToggleBlock}
-								disabled={loading}
-								className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-left text-sm font-medium text-red-700 transition hover:border-red-300 disabled:opacity-60"
-							>
-								{settings?.blocked ? "Unblock user" : "Block user"}
-							</button>
+							<>
+								{!directBlocked && !isDirectFriend ? (
+									<button
+										type="button"
+										onClick={handleAddFriend}
+										disabled={friendActionLoading || directFriendRequestPending}
+										className="rounded-md border border-[#bfdbfe] bg-[#eff6ff] px-3 py-2 text-left text-sm font-medium text-[#1d4ed8] transition hover:border-[#93c5fd] disabled:cursor-not-allowed disabled:opacity-60"
+									>
+										{directFriendRequestPending ? "Friend request sent" : "Add friend"}
+									</button>
+								) : null}
+								<button
+									type="button"
+									onClick={handleToggleBlock}
+									disabled={loading}
+									className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-left text-sm font-medium text-red-700 transition hover:border-red-300 disabled:opacity-60"
+								>
+									{settings?.blocked ? "Unblock user" : "Block user"}
+								</button>
+							</>
 						) : (
 							<div className="rounded-md border border-[#ebebeb] bg-[#fafafa] px-3 py-2 text-sm text-[#888888]">
 								Shared media (coming soon)
@@ -371,7 +494,7 @@ const ChatSettingsPanel = ({ conversation }) => {
 				{settings?.isGroup ? (
 					<div className="rounded-lg border border-[#ebebeb] bg-white p-4 shadow-[0_1px_1px_rgba(0,0,0,0.03)]">
 						<p className="mb-3 font-mono text-[11px] uppercase text-[#888888]">Members</p>
-						{settings?.currentUserAdmin ? (
+						{settings?.isGroup ? (
 							<div className="mb-4 rounded-md border border-[#ebebeb] bg-[#fafafa] p-3">
 								<input
 									type="search"
@@ -385,13 +508,13 @@ const ChatSettingsPanel = ({ conversation }) => {
 										{loadingMembers ? (
 											<p className="text-xs text-[#888888]">Searching...</p>
 										) : memberSearchResults.length === 0 ? (
-											<p className="text-xs text-[#888888]">No matching users</p>
+											<p className="text-xs text-[#888888]">No matching friends</p>
 										) : (
 											memberSearchResults.slice(0, 6).map((user) => (
 												<div key={user.id} className="flex items-center justify-between rounded-md border border-[#ebebeb] bg-white px-2 py-2">
 													<div className="min-w-0">
-														<p className="truncate text-xs font-semibold text-[#171717]">{user.username}</p>
-														<p className="truncate text-[11px] text-[#888888]">{user.email}</p>
+														<p className="truncate text-xs font-semibold text-[#171717]">{user.nickname || user.username}</p>
+														<p className="truncate text-[11px] text-[#888888]">@{user.username}</p>
 													</div>
 													<button
 														type="button"
@@ -413,18 +536,25 @@ const ChatSettingsPanel = ({ conversation }) => {
 								const isSelf = String(member.userId) === String(currentUserId);
 								const canManage = settings?.currentUserAdmin && !member.owner && !isSelf;
 								const actionsOpen = String(activeMemberActionId) === String(member.userId);
+								const blockedWarning = !isSelf && (member.blockedByCurrentUser || member.blocksCurrentUser);
 								return (
-									<div key={member.userId} className="rounded-md border border-[#ebebeb] bg-[#fafafa] px-3 py-2">
+									<div key={member.userId} className={`rounded-md border px-3 py-2 ${blockedWarning ? "border-[#ffefcf] bg-[#fff8ea]" : "border-[#ebebeb] bg-[#fafafa]"}`}>
 										<div className="flex items-center justify-between gap-2">
 											<div className="min-w-0">
 												<p className="truncate text-sm font-semibold text-[#171717]">
-													{member.username}
+													{member.nickname || member.username}
 													{isSelf ? " (You)" : ""}
 												</p>
-												<div className="mt-1">
+												<p className="mt-0.5 truncate text-xs text-[#888888]">@{member.username}</p>
+												<div className="mt-1 flex flex-wrap gap-1.5">
 													<span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${roleBadgeClass(member)}`}>
 														{roleLabel(member)}
 													</span>
+													{blockedWarning ? (
+														<span className="rounded-full border border-[#ffefcf] bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8a5a00]">
+															Blocked warning
+														</span>
+													) : null}
 												</div>
 											</div>
 											{canManage ? (
@@ -491,12 +621,7 @@ const ChatSettingsPanel = ({ conversation }) => {
 							})}
 						</div>
 					</div>
-				) : (
-					<div className="rounded-lg border border-[#ebebeb] bg-white p-4 shadow-[0_1px_1px_rgba(0,0,0,0.03)]">
-						<p className="font-mono text-[11px] uppercase text-[#888888]">Shared Content</p>
-						<p className="mt-2 text-sm text-[#4d4d4d]">Media and links explorer coming soon.</p>
-					</div>
-				)}
+				) : null}
 
 				{settings?.isGroup ? (
 					<div className="rounded-lg border border-red-200 bg-red-50 p-4">
