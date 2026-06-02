@@ -166,13 +166,14 @@ const useConversation = create((set) => ({
 				selectedConversation,
 			};
 		}),
-	updateConversationFromMessage: (message, currentUserId) =>
+	updateConversationFromMessage: (message, currentUserId, options = {}) =>
 		set((state) => {
 			if (!message?.chatId) return {};
 
 			const targetChatId = message.chatId;
 			const isSelectedChat = state.selectedConversation?.chatId === targetChatId;
 			const isIncoming = !!currentUserId && message.userId !== currentUserId;
+			const suppressUnread = Boolean(options.suppressUnread);
 
 			const existingConversation = state.conversations.find(
 				(conversation) => getConversationId(conversation) === targetChatId
@@ -187,7 +188,7 @@ const useConversation = create((set) => ({
 				lastMessage: message,
 				unreadCount: isSelectedChat
 					? 0
-					: isIncoming
+					: isIncoming && !suppressUnread
 						? (existingConversation.unreadCount ?? 0) + 1
 						: existingConversation.unreadCount ?? 0,
 			};

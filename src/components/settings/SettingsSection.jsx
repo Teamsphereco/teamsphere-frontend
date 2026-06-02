@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuthContext } from "../../context/AuthContext";
-import useSettings from "../../zustand/useSettings";
+import useSettings, { appearanceSettingKeys } from "../../zustand/useSettings";
 import { getBlockedUsers, unblockUser as unblockUserRequest } from "../../utils/socialApi";
 import {
   integrations,
@@ -37,6 +37,10 @@ const sampleDevices = {
   ],
 };
 
+const hasUnsavedAppearanceChanges = (settings, savedAppearanceSettings) => appearanceSettingKeys.some(
+  (key) => settings[key] !== savedAppearanceSettings[key]
+);
+
 const makeDeviceOptions = (devices, kind, defaultLabel) => {
   const matchingDevices = devices.filter((device) => device.kind === kind && device.deviceId);
   const sourceDevices = matchingDevices.length ? matchingDevices : sampleDevices[kind];
@@ -56,7 +60,11 @@ const SettingsSection = ({ categoryId, profileSummary }) => {
   const token = authUser?.jwt;
   const {
     settings,
+    savedAppearanceSettings,
     updateSetting,
+    saveAppearanceSettings,
+    revertAppearanceSettings,
+    appearanceSaving,
     linkedDevices,
     removeLinkedDevice,
     removeOtherDevices,
@@ -105,6 +113,11 @@ const SettingsSection = ({ categoryId, profileSummary }) => {
     speaker: makeDeviceOptions(mediaDevices, "audiooutput", "speaker"),
     camera: makeDeviceOptions(mediaDevices, "videoinput", "camera"),
   }), [mediaDevices]);
+
+  const appearanceDirty = useMemo(
+    () => hasUnsavedAppearanceChanges(settings, savedAppearanceSettings),
+    [savedAppearanceSettings, settings]
+  );
 
   const handleChange = (item, value) => {
     updateSetting(item.control.key, value);
@@ -179,6 +192,7 @@ const SettingsSection = ({ categoryId, profileSummary }) => {
         onConfirm: async () => {
           await unblockUserRequest({ token, userId: item.id });
           await fetchBlockedUsers();
+          window.dispatchEvent(new Event("teamsphere-blocks-changed"));
           toast.success(`${item.nickname || item.username} was unblocked.`);
         },
       });
@@ -214,12 +228,37 @@ const SettingsSection = ({ categoryId, profileSummary }) => {
     closeDialog();
   };
 
+  const handleSaveAppearance = async () => {
+    if (!token) {
+      toast.error("Sign in again to save appearance settings.");
+      return;
+    }
+
+    const toastId = toast.loading("Saving appearance...");
+    try {
+      await saveAppearanceSettings(token);
+      toast.success("Appearance settings saved.", { id: toastId });
+    } catch (error) {
+      toast.error(error.message || "Could not save appearance settings.", { id: toastId });
+    }
+  };
+
   return (
     <div className="space-y-4">
       {categoryId === "profile" ? <ProfileHero profileSummary={profileSummary} settings={settings} onAction={handleAction} /> : null}
       {categoryId === "devices-sessions" ? <DevicesSessions linkedDevices={linkedDevices} onAction={handleAction} /> : null}
       {categoryId === "notifications" ? <NotificationPreview settings={settings} /> : null}
-      {categoryId === "appearance" ? <ChatPreview settings={settings} profileSummary={profileSummary} /> : null}
+      {categoryId === "appearance" ? (
+        <>
+          <ChatPreview settings={settings} profileSummary={profileSummary} />
+          <AppearanceSaveBar
+            dirty={appearanceDirty}
+            saving={appearanceSaving}
+            onSave={handleSaveAppearance}
+            onRevert={revertAppearanceSettings}
+          />
+        </>
+      ) : null}
       {categoryId === "chats-messaging" ? <ChatOrganizationCard settings={settings} /> : null}
       {categoryId === "audio-video" ? (
         <AudioVideoDevices
@@ -375,28 +414,95 @@ const NotificationPreview = ({ settings }) => (
   </section>
 );
 
-const ChatPreview = ({ settings, profileSummary }) => (
+const previewDensity = {
+  compact: {
+    stack: "space-y-2",
+    bubble: "px-3 py-1.5",
+  },
+  comfortable: {
+    stack: "space-y-3",
+    bubble: "px-4 py-2",
+  },
+  spacious: {
+    stack: "space-y-5",
+    bubble: "px-5 py-3",
+  },
+};
+
+const ChatPreview = ({ settings }) => {
+  const density = previewDensity[settings.chatDensity] || previewDensity.comfortable;
+  const bubbleStyleClass = settings.bubbleStyle === "classic" ? "font-serif" : "";
+
+  return (
   <section className="rounded-lg border border-[#ebebeb] bg-white p-4 shadow-[0_1px_1px_rgba(0,0,0,0.03),0_8px_16px_-12px_rgba(0,0,0,0.08)]">
     <p className="font-mono text-[11px] text-[#888888]">LIVE CHAT PREVIEW</p>
     <div className="mt-4 rounded-lg border border-[#ebebeb] bg-[#fafafa] p-4">
-      <div className="space-y-3" style={{ fontSize: `${settings.messageTextSize}px` }}>
-        <div className="flex items-end gap-2">
-          {settings.showAvatars ? <div className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-xs font-semibold text-[#171717]">MK</div> : null}
-          <div className="max-w-[75%] rounded-lg border border-[#ebebeb] bg-white px-3 py-2" style={{ borderRadius: `${settings.messageRadius}px` }}>
-            <p className="text-[#171717]">Design review is ready. I added the final call flow.</p>
-            {settings.showTimestamps ? <p className="mt-1 text-[11px] text-[#888888]">9:41 AM</p> : null}
+      <div className={density.stack} style={{ fontSize: `${settings.messageTextSize}px` }}>
+        <div className="flex min-w-0 items-end gap-2">
+          {settings.showAvatars ? <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-[#171717]">M</div> : null}
+          <div className="min-w-0 max-w-[78%]">
+            <div className="mb-1 flex min-w-0 items-center gap-2">
+              <span className="truncate text-xs font-semibold text-[#171717]">Mika</span>
+              {settings.showTimestamps ? <span className="text-[11px] text-[#888888]">9:41 AM</span> : null}
+            </div>
+            <div className={`inline-block max-w-full border border-[#ebebeb] bg-white ${density.bubble} text-[#171717] shadow-[0_1px_1px_rgba(0,0,0,0.03)] whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${bubbleStyleClass}`} style={{ borderRadius: `${settings.messageRadius}px` }}>
+              Design review is ready. I added the final call flow.
+            </div>
           </div>
         </div>
-        <div className="flex justify-end">
-          <div className="max-w-[75%] rounded-lg bg-[#171717] px-3 py-2 text-white" style={{ borderRadius: `${settings.messageRadius}px` }}>
-            <p>Looks good. Shipping notes next.</p>
-            {settings.showReadStates ? <p className="mt-1 text-[11px] text-white/70">Read 9:42 AM</p> : null}
+        <div className="flex min-w-0 items-end justify-end gap-2">
+          <div className="flex min-w-0 max-w-[78%] flex-col items-end">
+            <div className="mb-1 flex min-w-0 items-center justify-end gap-2">
+              {settings.showTimestamps ? <span className="text-[11px] text-[#888888]">9:42 AM</span> : null}
+              <span className="truncate text-xs font-semibold text-[#171717]">You</span>
+            </div>
+            <div className={`inline-block max-w-full bg-[#171717] ${density.bubble} text-white shadow-[0_1px_2px_rgba(0,0,0,0.18)] whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${bubbleStyleClass}`} style={{ borderRadius: `${settings.messageRadius}px` }}>
+              Looks good. Shipping notes next.
+            </div>
           </div>
+          {settings.showAvatars ? <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#171717] text-[10px] font-semibold text-white">Y</div> : null}
         </div>
-        <div className="flex items-center gap-2 text-xs text-[#4d4d4d]">
-          <span className="rounded-md border border-[#ebebeb] bg-white px-2 py-1">+1 reaction</span>
-          <span>{profileSummary.name} typing</span>
-        </div>
+        {settings.typingAnimation ? (
+          <div className="flex items-center gap-2 px-1 text-xs italic text-[#0070f3]">
+            <span>Mika is typing</span>
+            <span className="inline-flex gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#0070f3]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-[#0070f3]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-[#0070f3]" />
+            </span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  </section>
+  );
+};
+
+const AppearanceSaveBar = ({ dirty, saving, onSave, onRevert }) => (
+  <section className="sticky bottom-3 z-10 rounded-lg border border-[#ebebeb] bg-white p-3 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-[#171717]">
+          {dirty ? "Unsaved appearance changes" : "Appearance is saved"}
+        </p>
+        <p className="mt-1 text-sm text-[#4d4d4d]">
+          {dirty ? "Preview updates immediately. Save when you want this on every device." : "These preferences are synced to your account."}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <ActionButton disabled={!dirty || saving} onClick={onRevert}>Revert</ActionButton>
+        <button
+          type="button"
+          disabled={!dirty || saving}
+          onClick={onSave}
+          className={`inline-flex min-h-10 items-center justify-center rounded-md border px-3 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-[#0070f3] focus:ring-offset-2 disabled:cursor-not-allowed ${
+            dirty
+              ? "border-[#0070f3] bg-[#0070f3] text-white hover:bg-[#005bd1]"
+              : "border-[#d3e5ff] bg-[#eef6ff] text-[#0761d1]"
+          }`}
+        >
+          {saving ? "Saving..." : "Save appearance"}
+        </button>
       </div>
     </div>
   </section>

@@ -316,14 +316,15 @@ const useChatWebSocket = () => {
 		if (!message?.id || !message?.chatId) return;
 
 		const chatId = message.chatId;
+		let fetchedSummary = null;
 		let hasConversation = (conversationsRef.current || []).some(
 			(conversation) => (conversation?.id ?? conversation?.chatId) === chatId
 		);
 		if (!hasConversation) {
-			await fetchConversationSummary(chatId);
+			fetchedSummary = await fetchConversationSummary(chatId);
 			hasConversation = (conversationsRef.current || []).some(
 				(conversation) => (conversation?.id ?? conversation?.chatId) === chatId
-			);
+			) || Boolean(fetchedSummary);
 		}
 		if (!hasConversation) {
 			const incomingIsFromOtherUser = !!currentUserId && message.userId !== currentUserId;
@@ -339,7 +340,12 @@ const useChatWebSocket = () => {
 			void fetchConversationSummary(chatId);
 		}
 
-		updateConversationFromMessage(message, currentUserId);
+		const knownConversation = (conversationsRef.current || []).find(
+			(conversation) => (conversation?.id ?? conversation?.chatId) === message.chatId
+		) || fetchedSummary;
+		const isRequestedChat = knownConversation?.requestIncoming || knownConversation?.requestStatus === "PENDING";
+
+		updateConversationFromMessage(message, currentUserId, { suppressUnread: isRequestedChat });
 		setTypingState({
 			chatId: message.chatId,
 			userId: message.userId,
@@ -350,8 +356,12 @@ const useChatWebSocket = () => {
 			if (currentUserId && message.userId !== currentUserId) {
 				const sourceConversation = (conversationsRef.current || []).find(
 					(conversation) => (conversation?.id ?? conversation?.chatId) === message.chatId
-				);
-				if (sourceConversation?.muted) {
+				) || fetchedSummary;
+				if (
+					sourceConversation?.muted ||
+					sourceConversation?.requestIncoming ||
+					sourceConversation?.requestStatus === "PENDING"
+				) {
 					return;
 				}
 				const senderKey = message?.userId ? String(message.userId) : null;

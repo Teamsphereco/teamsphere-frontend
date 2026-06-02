@@ -6,11 +6,11 @@ import MediaSvg from "./svg/MediaSvg";
 import SettingsSvg from "./svg/SettingsSvg";
 import LogoutButton from "./LogoutButton";
 import useProfile from "../zustand/useProfile";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 
 const navItems = [
-  { id: 1, to: "/chat", component: <ChatsSvg className="mb-1 h-5 w-5 stroke-current" />, label: "All chats" },
-  { id: 2, to: "/friends", component: <FriendsSvg className="mb-1 h-6 w-6 stroke-current" />, label: "Friends" },
+  { id: 1, to: "/chat", component: <ChatsSvg className="mb-1 h-5 w-5 fill-current" />, label: "Chats" },
+  { id: 2, to: "/friends", component: <FriendsSvg className="mb-1 h-6 w-6 fill-current" />, label: "Friends" },
   { id: 3, href: "#", component: <FolderSvg className="mb-1 w-5 fill-current" />, label: "Meet" },
   { id: 4, href: "#", component: <CalendarSvg className="mb-1 w-5 fill-current" />, label: "Calendar" },
   { id: 6, href: "#", component: <MediaSvg className="mb-1 h-5 w-5 stroke-current" />, label: "Media" },
@@ -23,9 +23,13 @@ function NavigationMenu() {
   const hasProfilePicture = Boolean(profile?.profilePicture);
 
   return (
-    <div className="hidden h-dvh w-24 flex-col border-r border-[#ebebeb] bg-white py-4 text-sm text-[#888888] md:flex md:items-center">
-      <div className="shrink-0 px-2">
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-[#ebebeb] bg-[#fafafa] px-2 py-3">
+    <div className="hidden h-dvh w-24 flex-col overflow-x-hidden border-r border-[#ebebeb] bg-white py-4 text-sm text-[#888888] md:flex md:items-center">
+      <div className="w-full min-w-0 shrink-0 px-2">
+        <Link
+          to="/settings#profile"
+          className="flex w-full min-w-0 flex-col items-center gap-2 overflow-hidden rounded-lg border border-[#ebebeb] bg-[#fafafa] px-2 py-3 text-center transition hover:border-[#a1a1a1] hover:bg-white hover:text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#0070f3]"
+          aria-label="Open profile settings"
+        >
           {hasProfilePicture ? (
             <img
               src={profile.profilePicture}
@@ -37,10 +41,10 @@ function NavigationMenu() {
               {displayName.charAt(0).toUpperCase()}
             </div>
           )}
-          <p className="w-full truncate text-center text-[11px] font-medium text-[#171717]">
+          <p className="max-w-full truncate text-center text-[11px] font-medium text-[#171717]">
             {displayName}
           </p>
-        </div>
+        </Link>
       </div>
 
       <div className="mt-5 flex min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto px-2 pb-4">

@@ -12,6 +12,7 @@ import CallDisconnectModal from "../Calls/CallDisconnectModal";
 import CallStage from "../Calls/CallStage";
 import { acceptChatRequest, declineChatRequest } from "../../utils/socialApi";
 import { getChatCallHistory } from "../../utils/callApi";
+import useSettings from "../../zustand/useSettings";
 
 export default function MessageContainer({
 	onCloseChat,
@@ -33,6 +34,7 @@ export default function MessageContainer({
 	} = useConversation();
 	const { authUser } = useAuthContext();
 	const token = authUser?.jwt;
+	const { settings } = useSettings();
 	const [declineModalOpen, setDeclineModalOpen] = useState(false);
 	const [requestActionLoading, setRequestActionLoading] = useState(false);
     const {
@@ -226,7 +228,7 @@ export default function MessageContainer({
 								onDeclineAndBlock={() => handleDeclineRequest(true)}
 							/>
 						<div
-							className={`flex h-full w-[200%] transition-transform duration-300 ease-out ${
+							className={`flex h-full w-[200%] transition-transform ${settings.reduceMotion ? "duration-0" : "duration-300 ease-out"} ${
 								conversationViewMode === "settings" ? "-translate-x-1/2" : "translate-x-0"
 							}`}
 						>
@@ -248,6 +250,7 @@ export default function MessageContainer({
 								count={activeTypingUsers.length}
 								isSelfTyping={isSelfTyping}
 								chatName={selectedConversation?.chatName}
+								animate={settings.typingAnimation && !settings.reduceMotion}
 							/>
 							{incomingRequest ? (
 								<ChatRequestActions
@@ -320,7 +323,7 @@ const BlockNotice = ({ blockedByCurrentUser, blocksCurrentUser }) => {
 	);
 };
 
-const TypingIndicator = ({ count, isSelfTyping, chatName }) => {
+const TypingIndicator = ({ count, isSelfTyping, chatName, animate = true }) => {
 	if (!count && !isSelfTyping) {
 		return <div className="h-7 px-5" />;
 	}
@@ -334,11 +337,13 @@ const TypingIndicator = ({ count, isSelfTyping, chatName }) => {
 	return (
 		<div data-testid="typing-indicator" className="flex items-center gap-2 px-5 py-1 text-xs italic text-[#0070f3]">
 			<span>{label}</span>
-			<span className="inline-flex gap-1">
-				<span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#0070f3] [animation-delay:-0.2s]" />
-				<span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#0070f3] [animation-delay:-0.1s]" />
-				<span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#0070f3]" />
-			</span>
+			{animate ? (
+				<span className="inline-flex gap-1">
+					<span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#0070f3] [animation-delay:-0.2s]" />
+					<span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#0070f3] [animation-delay:-0.1s]" />
+					<span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#0070f3]" />
+				</span>
+			) : null}
 		</div>
 	);
 };

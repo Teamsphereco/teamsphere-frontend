@@ -31,7 +31,7 @@ export const categories = [
   { id: "audio-video", label: "Audio & Video", icon: "video", badge: "Beta" },
   { id: "accessibility", label: "Accessibility", icon: "accessibility" },
   { id: "privacy-safety", label: "Privacy & Safety", icon: "lock" },
-  { id: "blocked-users", label: "Blocked Users", icon: "ban", badge: "2" },
+  { id: "blocked-users", label: "Blocked Users", icon: "ban" },
   { id: "contacts", label: "Contacts", icon: "contacts" },
   { id: "data-storage", label: "Data & Storage", icon: "database" },
   { id: "backups", label: "Backups", icon: "cloud", badge: "New" },
@@ -372,7 +372,6 @@ export const settingsContent = {
       {
         title: "Typography",
         rows: [
-          row("font-size", "App font size", "Adjust the base interface font size.", range("appFontSize", 14, 20, 1, "px")),
           row("message-size", "Message text size", "Adjust message body text independently.", range("messageTextSize", 13, 20, 1, "px")),
           row("code-size", "Code block font size", "Adjust code snippets and mono metadata.", range("codeFontSize", 12, 18, 1, "px")),
         ],
@@ -381,7 +380,6 @@ export const settingsContent = {
         title: "Motion",
         rows: [
           row("motion", "Reduce motion", "Minimize movement across panels, previews, and toasts.", toggle("reduceMotion")),
-          row("emoji", "Animated emoji", "Play animated emoji and sticker reactions.", toggle("animatedEmoji")),
           row("typing", "Typing animation", "Show typing indicator dots in active chats.", toggle("typingAnimation")),
         ],
       },

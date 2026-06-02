@@ -9,9 +9,54 @@ import CardStackDemo from './pages/cardstack/CardStackDemo'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuthContext } from "./context/AuthContext";
 import AppToaster from "./components/AppToaster";
+import useSettings from "./zustand/useSettings";
+import { useEffect, useState } from "react";
+
+const resolveTheme = (theme) => {
+  if (theme !== "system") {
+    return theme;
+  }
+
+  if (typeof window === "undefined" || !window.matchMedia) {
+    return "light";
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
 
 function App() {
   const { authUser } = useAuthContext();
+  const token = authUser?.jwt;
+  const { settings, loadAppearanceSettings } = useSettings();
+  const [resolvedTheme, setResolvedTheme] = useState(() => resolveTheme(settings.theme));
+
+  useEffect(() => {
+    if (token) {
+      void loadAppearanceSettings(token);
+    }
+  }, [loadAppearanceSettings, token]);
+
+  useEffect(() => {
+    const updateResolvedTheme = () => setResolvedTheme(resolveTheme(settings.theme));
+    updateResolvedTheme();
+
+    if (settings.theme !== "system" || typeof window === "undefined" || !window.matchMedia) {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    mediaQuery.addEventListener("change", updateResolvedTheme);
+    return () => mediaQuery.removeEventListener("change", updateResolvedTheme);
+  }, [settings.theme]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--ts-message-font-size", `${settings.messageTextSize}px`);
+    document.documentElement.style.setProperty("--ts-code-font-size", `${settings.codeFontSize}px`);
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.dataset.themePreference = settings.theme;
+    document.documentElement.dataset.density = settings.chatDensity;
+    document.documentElement.dataset.reduceMotion = settings.reduceMotion ? "true" : "false";
+  }, [resolvedTheme, settings.chatDensity, settings.codeFontSize, settings.messageTextSize, settings.reduceMotion, settings.theme]);
 
   return (
     <div>
