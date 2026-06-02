@@ -1,6 +1,21 @@
 import { create } from "zustand";
 
 const STORAGE_KEY = "teamsphere-settings";
+const API_BASE_URL = import.meta.env.VITE_API_HOST || "http://localhost:5454";
+
+export const appearanceSettingKeys = [
+  "theme",
+  "chatDensity",
+  "bubbleStyle",
+  "messageRadius",
+  "showAvatars",
+  "showTimestamps",
+  "showReadStates",
+  "messageTextSize",
+  "codeFontSize",
+  "reduceMotion",
+  "typingAnimation",
+];
 
 export const defaultSettings = {
   status: "online",
@@ -42,11 +57,9 @@ export const defaultSettings = {
   showAvatars: true,
   showTimestamps: true,
   showReadStates: true,
-  appFontSize: 16,
   messageTextSize: 15,
   codeFontSize: 13,
   reduceMotion: false,
-  animatedEmoji: true,
   typingAnimation: true,
   enterToSend: true,
   autoSaveDrafts: true,
@@ -221,16 +234,96 @@ const persistSettings = (settings) => {
 };
 
 const storedState = readStoredSettings();
+const initialSettings = { ...defaultSettings, ...(storedState.settings || {}) };
+
+const getAppearanceSettingsPayload = (settings) => appearanceSettingKeys.reduce((payload, key) => ({
+  ...payload,
+  [key]: settings[key],
+}), {});
 
 const useSettings = create((set, get) => ({
-  settings: { ...defaultSettings, ...(storedState.settings || {}) },
+  settings: initialSettings,
+  savedAppearanceSettings: storedState.savedAppearanceSettings || getAppearanceSettingsPayload(initialSettings),
   blockedUsers: storedState.blockedUsers || defaultBlockedUsers,
   linkedDevices: storedState.linkedDevices || defaultLinkedDevices,
+  appearanceLoading: false,
+  appearanceSaving: false,
   cacheClearing: false,
+  loadAppearanceSettings: async (token) => {
+    if (!token) return;
+    set({ appearanceLoading: true });
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/settings/appearance`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Unable to load appearance settings");
+      }
+      const payload = await response.json();
+      const nextSettings = { ...get().settings, ...payload };
+      const savedAppearanceSettings = getAppearanceSettingsPayload(nextSettings);
+      persistSettings({
+        settings: nextSettings,
+        savedAppearanceSettings,
+        blockedUsers: get().blockedUsers,
+        linkedDevices: get().linkedDevices,
+      });
+      set({ settings: nextSettings, savedAppearanceSettings });
+    } catch (error) {
+      console.error(error.message);
+    } finally {
+      set({ appearanceLoading: false });
+    }
+  },
+  saveAppearanceSettings: async (token) => {
+    if (!token) return;
+    set({ appearanceSaving: true });
+    try {
+      const payload = getAppearanceSettingsPayload(get().settings);
+      const response = await fetch(`${API_BASE_URL}/api/settings/appearance`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error("Unable to save appearance settings");
+      }
+      const savedPayload = await response.json();
+      const nextSettings = { ...get().settings, ...savedPayload };
+      const savedAppearanceSettings = getAppearanceSettingsPayload(nextSettings);
+      persistSettings({
+        settings: nextSettings,
+        savedAppearanceSettings,
+        blockedUsers: get().blockedUsers,
+        linkedDevices: get().linkedDevices,
+      });
+      set({ settings: nextSettings, savedAppearanceSettings });
+    } finally {
+      set({ appearanceSaving: false });
+    }
+  },
+  revertAppearanceSettings: () => {
+    const nextSettings = { ...get().settings, ...get().savedAppearanceSettings };
+    persistSettings({
+      settings: nextSettings,
+      savedAppearanceSettings: get().savedAppearanceSettings,
+      blockedUsers: get().blockedUsers,
+      linkedDevices: get().linkedDevices,
+    });
+    set({ settings: nextSettings });
+  },
   updateSetting: (key, value) => {
     const nextSettings = { ...get().settings, [key]: value };
     persistSettings({
       settings: nextSettings,
+      savedAppearanceSettings: get().savedAppearanceSettings,
       blockedUsers: get().blockedUsers,
       linkedDevices: get().linkedDevices,
     });
@@ -238,17 +331,32 @@ const useSettings = create((set, get) => ({
   },
   unblockUser: (userId) => {
     const blockedUsers = get().blockedUsers.filter((user) => user.id !== userId);
-    persistSettings({ settings: get().settings, blockedUsers, linkedDevices: get().linkedDevices });
+    persistSettings({
+      settings: get().settings,
+      savedAppearanceSettings: get().savedAppearanceSettings,
+      blockedUsers,
+      linkedDevices: get().linkedDevices,
+    });
     set({ blockedUsers });
   },
   removeLinkedDevice: (deviceId) => {
     const linkedDevices = get().linkedDevices.filter((device) => device.id !== deviceId);
-    persistSettings({ settings: get().settings, blockedUsers: get().blockedUsers, linkedDevices });
+    persistSettings({
+      settings: get().settings,
+      savedAppearanceSettings: get().savedAppearanceSettings,
+      blockedUsers: get().blockedUsers,
+      linkedDevices,
+    });
     set({ linkedDevices });
   },
   removeOtherDevices: () => {
     const linkedDevices = get().linkedDevices.filter((device) => device.current);
-    persistSettings({ settings: get().settings, blockedUsers: get().blockedUsers, linkedDevices });
+    persistSettings({
+      settings: get().settings,
+      savedAppearanceSettings: get().savedAppearanceSettings,
+      blockedUsers: get().blockedUsers,
+      linkedDevices,
+    });
     set({ linkedDevices });
   },
   clearCache: () => {
@@ -263,11 +371,13 @@ const useSettings = create((set, get) => ({
   resetSettings: () => {
     persistSettings({
       settings: defaultSettings,
+      savedAppearanceSettings: getAppearanceSettingsPayload(defaultSettings),
       blockedUsers: defaultBlockedUsers,
       linkedDevices: defaultLinkedDevices,
     });
     set({
       settings: defaultSettings,
+      savedAppearanceSettings: getAppearanceSettingsPayload(defaultSettings),
       blockedUsers: defaultBlockedUsers,
       linkedDevices: defaultLinkedDevices,
     });

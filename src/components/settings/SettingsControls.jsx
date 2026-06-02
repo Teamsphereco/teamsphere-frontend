@@ -65,7 +65,7 @@ export const ToggleSwitch = ({ checked, onChange, label }) => (
     aria-label={label}
     onClick={() => onChange(!checked)}
     className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-[#0070f3] focus:ring-offset-2 ${
-      checked ? "border-[#171717] bg-[#171717]" : "border-[#d4d4d4] bg-[#f5f5f5]"
+      checked ? "border-[#0070f3] bg-[#0070f3]" : "border-[#d4d4d4] bg-[#f5f5f5]"
     }`}
   >
     <span
@@ -128,7 +128,7 @@ export const RangeControl = ({ value, min, max, step, suffix, onChange, label })
       step={step}
       value={value}
       onChange={(event) => onChange(Number(event.target.value))}
-      className="w-28 accent-[#171717]"
+      className="w-28 accent-[#0070f3]"
     />
     <span className="w-12 rounded-md border border-[#ebebeb] bg-[#fafafa] px-2 py-1 text-center font-mono text-xs text-[#4d4d4d]">
       {value}{suffix}

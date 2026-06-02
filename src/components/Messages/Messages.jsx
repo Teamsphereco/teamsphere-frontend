@@ -1,8 +1,51 @@
 import { useEffect, useRef } from "react";
 import Message from "./Message";
 import { formatDateDivider, getDayKey } from "../../utils/extractTime";
+import useSettings from "../../zustand/useSettings";
 
 const TOP_LOAD_THRESHOLD_PX = 80;
+
+const densitySpacing = {
+	compact: {
+		container: "px-3 py-3 md:px-4",
+		message: "mb-2",
+		divider: "mb-3 mt-1",
+		call: "mb-3 mt-1",
+	},
+	comfortable: {
+		container: "px-4 py-4 md:px-6",
+		message: "mb-3",
+		divider: "mb-4 mt-2",
+		call: "mb-4 mt-2",
+	},
+	spacious: {
+		container: "px-5 py-5 md:px-8",
+		message: "mb-5",
+		divider: "mb-6 mt-3",
+		call: "mb-6 mt-3",
+	},
+};
+
+const themeClasses = {
+	dark: {
+		surface: "bg-[#141414]",
+		dividerLine: "bg-[#333333]",
+		dividerLabel: "border-[#333333] bg-[#202020] text-[#b3b3b3]",
+		muted: "text-[#b3b3b3]",
+	},
+	"high-contrast": {
+		surface: "bg-white",
+		dividerLine: "bg-black",
+		dividerLabel: "border-black bg-white text-black",
+		muted: "text-black",
+	},
+	default: {
+		surface: "bg-[#fafafa]",
+		dividerLine: "bg-[#ebebeb]",
+		dividerLabel: "border-[#ebebeb] bg-white text-[#888888]",
+		muted: "text-[#888888]",
+	},
+};
 
 const Messages = ({
 	messages,
@@ -17,6 +60,9 @@ const Messages = ({
 	const restoreHeightRef = useRef(null);
 	const stickToBottomRef = useRef(true);
 	const previousChatRef = useRef(selectedChatId);
+	const { settings } = useSettings();
+	const density = densitySpacing[settings.chatDensity] || densitySpacing.comfortable;
+	const theme = themeClasses[settings.theme] || themeClasses.default;
 
 	useEffect(() => {
 		previousChatRef.current = selectedChatId;
@@ -106,50 +152,50 @@ const Messages = ({
 			ref={listRef}
 			onScroll={handleScroll}
 			data-testid="messages-scroller"
-			className='flex-1 overflow-auto bg-[#fafafa] px-4 py-4 md:px-6'
+			className={`flex-1 overflow-auto ${theme.surface} ${density.container}`}
 		>
 			{loadingOlder && (
-				<p className='mb-3 text-center text-xs text-[#888888]'>Loading older messages...</p>
+				<p className={`mb-3 text-center text-xs ${theme.muted}`}>Loading older messages...</p>
 			)}
 			{!loading &&
 				messageRows.length > 0 &&
 				messageRows.map((row) =>
 					row.type === "divider" ? (
-						<div key={row.id} data-testid={row.id} className='mb-4 mt-2 flex items-center gap-3'>
-							<div className='h-px flex-1 bg-[#ebebeb]' />
-							<span className='rounded-full border border-[#ebebeb] bg-white px-3 py-1 text-[11px] font-medium text-[#888888]'>
+						<div key={row.id} data-testid={row.id} className={`${density.divider} flex items-center gap-3`}>
+							<div className={`h-px flex-1 ${theme.dividerLine}`} />
+							<span className={`rounded-full border px-3 py-1 text-[11px] font-medium ${theme.dividerLabel}`}>
 								{row.label}
 							</span>
-							<div className='h-px flex-1 bg-[#ebebeb]' />
+							<div className={`h-px flex-1 ${theme.dividerLine}`} />
 						</div>
 					) : row.type === "call" ? (
-						<CallTimelineRow key={row.id} callEvent={row.callEvent} />
+						<CallTimelineRow key={row.id} callEvent={row.callEvent} spacing={density.call} />
 					) : (
-						<div key={row.id} data-testid={`message-${row.id}`} className='mb-3'>
+						<div key={row.id} data-testid={`message-${row.id}`} className={density.message}>
 							<Message messageData={row.message} />
 						</div>
 					)
 				)}
 
 			{!loading && messages.length === 0 && callEvents.length === 0 && (
-				<p className='mt-10 text-center text-sm text-[#888888]'>
+				<p className={`mt-10 text-center text-sm ${theme.muted}`}>
 					Send a message to start the conversation.
 				</p>
 			)}
 			{loading && (
-				<p className='mt-10 text-center text-sm text-[#888888]'>Loading messages...</p>
+				<p className={`mt-10 text-center text-sm ${theme.muted}`}>Loading messages...</p>
 			)}
 		</div>
 	);
 };
 
-const CallTimelineRow = ({ callEvent }) => {
+const CallTimelineRow = ({ callEvent, spacing }) => {
 	const isEnded = callEvent?.eventKind === "ended";
 	const callType = callEvent?.callType === "VIDEO" ? "Video" : "Audio";
 	const time = formatCallTime(callEvent?.timeStamp);
 
 	return (
-		<div className="mb-4 mt-2 flex justify-center">
+		<div className={`${spacing} flex justify-center`}>
 			<div className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-[0_1px_1px_rgba(0,0,0,0.03)] ${
 				isEnded
 					? "border-[#ebebeb] bg-white text-[#4d4d4d]"

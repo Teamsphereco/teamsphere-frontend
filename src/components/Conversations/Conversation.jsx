@@ -1,6 +1,31 @@
 import useConversation from "../../zustand/useConversation";
 import useProfile from "../../zustand/useProfile";
+import useSettings from "../../zustand/useSettings";
 import { formatConversationTime, formatMessagePreview } from "../../utils/chatFormatting";
+
+const densityClasses = {
+	compact: {
+		row: "gap-2 px-2 py-2",
+		avatar: "h-8 w-8 rounded-md",
+		name: "text-sm",
+		preview: "text-[11px]",
+		metaGap: "mb-0.5",
+	},
+	comfortable: {
+		row: "gap-3 px-3 py-3",
+		avatar: "h-10 w-10 rounded-md",
+		name: "text-sm",
+		preview: "text-xs",
+		metaGap: "mb-1",
+	},
+	spacious: {
+		row: "gap-4 px-4 py-4",
+		avatar: "h-12 w-12 rounded-lg",
+		name: "text-base",
+		preview: "text-sm",
+		metaGap: "mb-1.5",
+	},
+};
 
 const Conversation = ({ conversation }) => {
 	const {
@@ -10,6 +35,8 @@ const Conversation = ({ conversation }) => {
 		selfTypingByChat,
 	} = useConversation();
 	const { profile } = useProfile();
+	const { settings } = useSettings();
+	const density = densityClasses[settings.chatDensity] || densityClasses.comfortable;
 
 	const chatId = conversation?.id ?? conversation?.chatId;
 	const chatKey = String(chatId);
@@ -75,7 +102,7 @@ const Conversation = ({ conversation }) => {
 	return (
 		<div
 			data-testid={`conversation-item-${chatId}`}
-			className={`group flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-3 transition ${
+			className={`group flex w-full cursor-pointer items-center rounded-md transition ${density.row} ${
 				isSelected
 					? "bg-[#171717] text-white shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
 					: "text-[#171717] hover:bg-[#fafafa]"
@@ -83,17 +110,17 @@ const Conversation = ({ conversation }) => {
 			onClick={handleClick}
 		>
 			{conversation?.chatImage ? (
-				<img className='h-10 w-10 rounded-md object-cover' src={conversation.chatImage} alt='chat avatar' />
+				<img className={`${density.avatar} shrink-0 object-cover`} src={conversation.chatImage} alt='chat avatar' />
 			) : (
-				<div className={`flex h-10 w-10 items-center justify-center rounded-md text-sm font-semibold ${isSelected ? "bg-white text-[#171717]" : "bg-[#f5f5f5] text-[#171717]"}`}>
+				<div className={`flex ${density.avatar} shrink-0 items-center justify-center text-sm font-semibold ${isSelected ? "bg-white text-[#171717]" : "bg-[#f5f5f5] text-[#171717]"}`}>
 					{conversation?.chatName?.charAt(0)?.toUpperCase() || "C"}
 				</div>
 			)}
 
 			<div className="min-w-0 flex-1">
-					<div className="mb-1 flex items-center justify-between gap-2">
+					<div className={`${density.metaGap} flex items-center justify-between gap-2`}>
 						<div className="min-w-0 flex items-center gap-2">
-							<h1 className={`truncate text-sm font-semibold ${isSelected ? "text-white" : "text-[#171717]"}`}>
+							<h1 className={`truncate font-semibold ${density.name} ${isSelected ? "text-white" : "text-[#171717]"}`}>
 								{conversation.chatName}
 							</h1>
 							{isGroupChat ? (
@@ -115,16 +142,21 @@ const Conversation = ({ conversation }) => {
 								</span>
 							) : null}
 						</div>
-						<span className={`shrink-0 text-xs ${isSelected ? "text-white/60" : "text-[#888888]"}`}>{formattedTime}</span>
+						{!isIncomingRequest ? (
+							<span className={`shrink-0 text-xs ${isSelected ? "text-white/60" : "text-[#888888]"}`}>{formattedTime}</span>
+						) : null}
 					</div>
-				<p className={`truncate text-xs ${isSelected ? "text-white/70" : previewClass.replace("text-slate-300/90", "text-[#4d4d4d]").replace("text-indigo-300", "text-[#0070f3]")}`}>
+				<p className={`truncate ${density.preview} ${isSelected ? "text-white/70" : previewClass.replace("text-slate-300/90", "text-[#4d4d4d]").replace("text-indigo-300", "text-[#0070f3]")}`}>
 					{isIncomingRequest ? "Wants to start a chat" : messagePreview}
 				</p>
 			</div>
 
-			{isIncomingRequest && !isSelected ? (
-				<div className="ml-1 rounded-full bg-[#fff8ea] px-2 py-1 text-[10px] font-semibold uppercase text-[#8a5a00]">
-					Request
+			{isIncomingRequest ? (
+				<div className="ml-2 flex w-20 shrink-0 flex-col items-end justify-center gap-2 self-stretch">
+					<span className={`max-w-full shrink-0 truncate text-xs ${isSelected ? "text-white/60" : "text-[#888888]"}`}>{formattedTime}</span>
+					<span className={`inline-flex h-7 max-w-full items-center justify-center rounded-md border px-2 text-[10px] font-semibold uppercase ${isSelected ? "border-white/20 bg-white/10 text-[#ffd27a]" : "border-[#ffefcf] bg-white text-[#8a5a00]"}`}>
+						Request
+					</span>
 				</div>
 			) : unreadCount > 0 && !isSelected ? (
 				<div className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#0070f3] px-1.5 text-[11px] font-semibold text-white">

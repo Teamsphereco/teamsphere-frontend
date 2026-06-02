@@ -13,10 +13,11 @@ const useSendMessage = () => {
 	} = useConversation();
     const { authUser } = useAuthContext();
 
-	const sendMessage = async (message) => {
-		const content = message?.trim();
+	const sendMessage = async (message, attachmentIds = []) => {
+		const content = message?.trim() || "";
 		const token = authUser?.jwt;
-		if (!content || !selectedConversation?.chatId || !token) return false;
+		const hasAttachments = Array.isArray(attachmentIds) && attachmentIds.length > 0;
+		if ((!content && !hasAttachments) || !selectedConversation?.chatId || !token) return false;
 
 		setLoading(true);
 		try {
@@ -28,7 +29,8 @@ const useSendMessage = () => {
 				},
                 body: JSON.stringify({
                     chatId: selectedConversation.chatId,
-                    content
+                    content,
+                    ...(hasAttachments ? { attachmentIds } : {})
                 })
 			});
 			const data = await res.json().catch(() => null);
